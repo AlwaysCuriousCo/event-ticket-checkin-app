@@ -16,6 +16,7 @@ enum ScanReason: string
     case WrongEvent = 'wrong_event';
     case SecurityCodeMismatch = 'security_code_mismatch';
     case OrderNotComplete = 'order_not_complete';
+    case EventNotOnDevice = 'event_not_on_device';
 
     public function label(): string
     {
@@ -27,6 +28,7 @@ enum ScanReason: string
             self::WrongEvent => 'Ticket is for a different event',
             self::SecurityCodeMismatch => 'Security code does not match',
             self::OrderNotComplete => 'Order not complete',
+            self::EventNotOnDevice => 'That event is not downloaded to this device',
         };
     }
 }

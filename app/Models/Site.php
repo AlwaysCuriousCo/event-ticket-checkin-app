@@ -10,11 +10,38 @@ class Site extends Model
 {
     use HasFactory;
 
-    protected $fillable = ['name', 'base_url', 'username', 'last_verified_at'];
+    protected $fillable = ['name', 'base_url', 'username', 'last_verified_at', 'is_active'];
 
     protected function casts(): array
     {
-        return ['last_verified_at' => 'datetime'];
+        return ['last_verified_at' => 'datetime', 'is_active' => 'boolean'];
+    }
+
+    /**
+     * The site every screen works in. Falls back to the oldest connected
+     * site (and promotes it) so devices that connected before multi-site
+     * support — or that just deleted their active site — stay usable.
+     */
+    public static function current(): ?self
+    {
+        $active = static::query()->where('is_active', true)->first();
+
+        if ($active) {
+            return $active;
+        }
+
+        $fallback = static::query()->oldest('id')->first();
+        $fallback?->activate();
+
+        return $fallback;
+    }
+
+    /** Make this the active site, demoting every other one. */
+    public function activate(): void
+    {
+        static::query()->where('id', '!=', $this->id)->update(['is_active' => false]);
+
+        $this->forceFill(['is_active' => true])->save();
     }
 
     public function events(): HasMany
@@ -41,6 +68,6 @@ class Site extends Model
     /** Root of the companion plugin's REST namespace on this site. */
     public function apiBase(): string
     {
-        return rtrim($this->base_url, '/').'/wp-json/tec-scanner/v1';
+        return rtrim($this->base_url, '/').'/wp-json/event-ticket-scanner/v1';
     }
 }

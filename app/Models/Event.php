@@ -2,6 +2,8 @@
 
 namespace App\Models;
 
+use Carbon\Carbon;
+use Carbon\Exceptions\InvalidFormatException;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -19,6 +21,27 @@ class Event extends Model
     protected function casts(): array
     {
         return ['last_synced_at' => 'datetime'];
+    }
+
+    /**
+     * Has the event finished? Uses the end time when the site supplied one
+     * (a day-long conference stays "upcoming" all day), and interprets both
+     * stamps in the event's own timezone — they arrive from WordPress as
+     * local wall-clock strings, not UTC.
+     */
+    public function hasEnded(): bool
+    {
+        $stamp = $this->ends_at ?: $this->starts_at;
+
+        if (! $stamp) {
+            return false; // undated events stay visible rather than vanishing
+        }
+
+        try {
+            return Carbon::parse($stamp, $this->timezone ?: config('app.timezone'))->isPast();
+        } catch (InvalidFormatException) {
+            return false;
+        }
     }
 
     public function site(): BelongsTo

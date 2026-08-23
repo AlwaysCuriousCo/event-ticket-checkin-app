@@ -16,13 +16,18 @@ class EventsIndex extends NativeComponent
 
     public string $siteName = '';
 
+    /** @var array<int, array{id: int, title: string, date: string, venue: ?string, attendee_count: int, checked_in_count: int}> */
+    public array $pastEvents = [];
+
+    public bool $showPast = false;
+
     public string $error = '';
 
     protected ?Site $site = null;
 
     public function mount(): void
     {
-        $this->site = Site::query()->latest('id')->first();
+        $this->site = Site::current();
 
         if (! $this->site) {
             $this->replace('/connect');
@@ -49,6 +54,12 @@ class EventsIndex extends NativeComponent
     public function open(int $eventId): void
     {
         $this->navigate("/events/{$eventId}");
+    }
+
+    /** Past events are hidden by default — door staff only ever want today's. */
+    public function togglePast(): void
+    {
+        $this->showPast = ! $this->showPast;
     }
 
     /**
@@ -82,7 +93,7 @@ class EventsIndex extends NativeComponent
             $this->error = 'Offline — showing cached events.';
         }
 
-        $this->events = Event::query()
+        $rows = Event::query()
             ->where('site_id', $this->site->id)
             ->orderBy('starts_at')
             ->get()
@@ -99,9 +110,15 @@ class EventsIndex extends NativeComponent
                     'venue' => $event->venue,
                     'attendee_count' => $total,
                     'checked_in_count' => $checkedIn,
+                    'past' => $event->hasEnded(),
                 ];
-            })
-            ->all();
+            });
+
+        // Upcoming: soonest first, so tonight's door is at the top.
+        // Past: most recently finished first, since that's what staff go
+        // back to for a late arrival or a stats check.
+        $this->events = $rows->reject(fn (array $row) => $row['past'])->values()->all();
+        $this->pastEvents = $rows->filter(fn (array $row) => $row['past'])->reverse()->values()->all();
     }
 
     public function navTitle(): string

@@ -3,6 +3,7 @@
 namespace App\NativeComponents;
 
 use App\Models\Event;
+use App\Models\Site;
 use App\Services\CheckinService;
 use App\Services\Qr\QrParser;
 use App\Services\Scan\ScanOutcome;
@@ -10,6 +11,7 @@ use App\Services\Scan\ScanValidator;
 use Illuminate\View\View;
 use Native\Mobile\Attributes\On;
 use Native\Mobile\Attributes\Poll;
+use Native\Mobile\Edge\Layouts\Builders\TabBarOptions;
 use Native\Mobile\Edge\NativeComponent;
 use Native\Mobile\Events\Scanner\CodeScanned;
 use Native\Mobile\Events\Scanner\ScannerCancelled;
@@ -44,7 +46,18 @@ class ScanScreen extends NativeComponent
 
     public int $sessionScans = 0;
 
+    /** Which event the last ticket belonged to — only shown in any-event mode. */
+    public string $eventLabel = '';
+
+    /** Header line: the pinned event, or "All events" from the Scan tab. */
+    public string $contextLabel = '';
+
+    /** No event pinned: the event comes from whatever ticket is scanned. */
+    public bool $anyEvent = false;
+
     protected ?Event $event = null;
+
+    protected ?Site $site = null;
 
     /** @var array<string, float> raw code → last-seen unix time (duplicate-read debounce) */
     protected array $recentCodes = [];
@@ -53,15 +66,41 @@ class ScanScreen extends NativeComponent
 
     public function mount(): void
     {
-        $this->event = Event::find((int) $this->param('event', 0));
+        $eventId = (int) $this->param('event', 0);
 
-        if (! $this->event) {
-            $this->replace('/events');
+        if ($eventId > 0) {
+            $this->event = Event::find($eventId);
 
-            return;
+            if (! $this->event) {
+                $this->replace('/events');
+
+                return;
+            }
+
+            $this->site = $this->event->site;
+            $this->contextLabel = $this->event->title;
+        } else {
+            // Scan tab: no event in context. Tickets are matched against
+            // every event downloaded for the active site.
+            $this->anyEvent = true;
+            $this->site = Site::current();
+
+            if (! $this->site) {
+                $this->replace('/connect');
+
+                return;
+            }
+
+            $this->contextLabel = 'All events · '.$this->site->name;
         }
 
         $this->startScanner();
+    }
+
+    /** The pushed, event-pinned scanner is a detail screen; the tab isn't. */
+    public function tabBarOptions(): ?TabBarOptions
+    {
+        return TabBarOptions::make()->hidden(! $this->anyEvent);
     }
 
     public function startScanner(): void
@@ -88,16 +127,23 @@ class ScanScreen extends NativeComponent
             return;
         }
 
-        $result = app(ScanValidator::class)->validate(app(QrParser::class)->parse($data), $this->event);
+        $parsed = app(QrParser::class)->parse($data);
+
+        $result = $this->event
+            ? app(ScanValidator::class)->validate($parsed, $this->event)
+            : app(ScanValidator::class)->validateForSite($parsed, $this->site);
 
         $this->sessionScans++;
         $this->resultShownAt = microtime(true);
         $this->attendeeName = $result->attendee->holder_name ?? '';
         $this->ticketName = $result->attendee->ticket_name ?? '';
         $this->reasonLabel = $result->reason->label();
+        // In any-event mode staff can't see which door they're at from the
+        // screen alone, so name the event the ticket resolved to.
+        $this->eventLabel = $this->anyEvent ? ($result->event?->title ?? '') : '';
 
         match ($result->outcome) {
-            ScanOutcome::Green => $this->showGreen($result->attendee),
+            ScanOutcome::Green => $this->showGreen($result->attendee, $result->event),
             ScanOutcome::Amber => $this->showAmber($result->attendee),
             ScanOutcome::Red => $this->showRed(),
         };
@@ -106,7 +152,9 @@ class ScanScreen extends NativeComponent
     #[On(ScannerCancelled::class)]
     public function onScannerCancelled(): void
     {
-        $this->back();
+        // The Scan tab is a root screen — there is nothing to pop back to,
+        // so closing the camera lands on the events list instead.
+        $this->anyEvent ? $this->replace('/events') : $this->back();
     }
 
     /** GREEN auto-returns to scanning; ticks are cheap no-ops otherwise. */
@@ -126,9 +174,9 @@ class ScanScreen extends NativeComponent
         }
     }
 
-    private function showGreen($attendee): void
+    private function showGreen($attendee, ?Event $event): void
     {
-        app(CheckinService::class)->checkin($attendee, $this->event);
+        app(CheckinService::class)->checkin($attendee, $event ?? $this->event);
         $this->vibrate(1);
         $this->phase = 'green';
     }
