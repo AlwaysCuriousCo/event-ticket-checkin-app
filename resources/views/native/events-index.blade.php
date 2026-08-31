@@ -2,6 +2,9 @@
 
 <native:refreshable class="w-full h-full bg-white" @refresh="refresh">
     <native:column class="w-full p-4 gap-3">
+        <native:outlined-text-input native:model.debounce.300ms="query" label="Search"
+                                    placeholder="Event or venue" />
+
         @if ($error !== '')
             <native:column class="w-full p-3 rounded-lg bg-amber-50 border border-amber-200">
                 <native:text class="text-sm text-amber-800">{{ $error }}</native:text>
@@ -16,13 +19,20 @@
                 <native:text class="text-sm text-zinc-500">{{ $event['date'] }}@if ($event['venue']) · {{ $event['venue'] }}@endif</native:text>
                 <native:row class="w-full items-center justify-between">
                     <native:text class="text-sm text-zinc-600">{{ $event['checked_in_count'] }} / {{ $event['attendee_count'] }} checked in</native:text>
-                    <native:icon name="chevron-right" :size="16" class="text-zinc-400" />
+                    <native:icon name="chevron.right" :size="16" class="text-zinc-400" />
                 </native:row>
+                <native:progress-bar :value="$event['attendee_count'] > 0 ? $event['checked_in_count'] / $event['attendee_count'] : 0"
+                                     color="#16a34a" track-color="#e4e4e7" class="w-full" />
             </native:pressable>
         @empty
             <native:column class="w-full items-center p-8 gap-2">
-                <native:text class="text-base text-zinc-500 text-center">No upcoming events on this site.</native:text>
-                <native:text class="text-sm text-zinc-400 text-center">Pull down to refresh.</native:text>
+                @if (trim($query) !== '')
+                    <native:text class="text-base text-zinc-500 text-center">No upcoming events match "{{ $query }}".</native:text>
+                    <native:text class="text-sm text-zinc-400 text-center">Past events matching it are below, if any.</native:text>
+                @else
+                    <native:text class="text-base text-zinc-500 text-center">No upcoming events on this site.</native:text>
+                    <native:text class="text-sm text-zinc-400 text-center">Pull down to refresh.</native:text>
+                @endif
             </native:column>
         @endforelse
 
@@ -33,7 +43,7 @@
                 <native:text class="text-sm font-semibold text-blue-600">
                     {{ $showPast ? 'Hide past events' : 'Show past events ('.count($pastEvents).')' }}
                 </native:text>
-                <native:icon name="{{ $showPast ? 'chevron-up' : 'chevron-down' }}" :size="14" class="text-blue-600" />
+                <native:icon name="{{ $showPast ? 'chevron.up' : 'chevron.down' }}" :size="14" class="text-blue-600" />
             </native:pressable>
 
             @if ($showPast)
@@ -45,7 +55,7 @@
                         <native:text class="text-sm text-zinc-400">{{ $event['date'] }}@if ($event['venue']) · {{ $event['venue'] }}@endif</native:text>
                         <native:row class="w-full items-center justify-between">
                             <native:text class="text-sm text-zinc-400">{{ $event['checked_in_count'] }} / {{ $event['attendee_count'] }} checked in</native:text>
-                            <native:icon name="chevron-right" :size="16" class="text-zinc-300" />
+                            <native:icon name="chevron.right" :size="16" class="text-zinc-300" />
                         </native:row>
                     </native:pressable>
                 @endforeach

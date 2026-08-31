@@ -2,6 +2,7 @@
 
 namespace App\NativeComponents;
 
+use App\Models\Attendee;
 use App\Models\Event;
 use App\Models\Site;
 use App\Services\Api\ApiClient;
@@ -20,6 +21,9 @@ class EventsIndex extends NativeComponent
     public array $pastEvents = [];
 
     public bool $showPast = false;
+
+    /** Title / venue filter, applied to the local copy only. */
+    public string $query = '';
 
     public string $error = '';
 
@@ -44,6 +48,12 @@ class EventsIndex extends NativeComponent
         if ($this->site) {
             $this->loadEvents();
         }
+    }
+
+    /** Re-filter as the search box changes. */
+    public function updatedQuery(string $value): void
+    {
+        $this->loadEvents();
     }
 
     public function refresh(): void
@@ -84,17 +94,44 @@ class EventsIndex extends NativeComponent
                         'ends_at' => $row['end_date'],
                         'timezone' => $row['timezone'],
                         'venue' => $row['venue'] ?? null,
+                        'allow_walkup' => (bool) ($row['allow_walkup'] ?? true),
                     ],
                 );
 
                 $serverCounts[$row['id']] = [$row['attendee_count'], $row['checked_in_count']];
             }
+
+            // The pull is the authoritative full list: drop local events the
+            // server no longer has (deleted/unpublished), and their cached
+            // attendees — otherwise stale duplicates linger forever.
+            $goneEventIds = Event::query()
+                ->where('site_id', $this->site->id)
+                ->whereNotIn('wp_event_id', array_keys($serverCounts))
+                ->pluck('wp_event_id');
+
+            if ($goneEventIds->isNotEmpty()) {
+                Attendee::query()
+                    ->where('site_id', $this->site->id)
+                    ->whereIn('wp_event_id', $goneEventIds)
+                    ->delete();
+                Event::query()
+                    ->where('site_id', $this->site->id)
+                    ->whereIn('wp_event_id', $goneEventIds)
+                    ->delete();
+            }
         } catch (ApiException) {
             $this->error = 'Offline — showing cached events.';
         }
 
+        $term = trim($this->query);
+
         $rows = Event::query()
             ->where('site_id', $this->site->id)
+            ->when($term !== '', function ($q) use ($term) {
+                $like = '%'.str_replace(['%', '_'], ['\%', '\_'], $term).'%';
+
+                $q->where(fn ($q) => $q->where('title', 'like', $like)->orWhere('venue', 'like', $like));
+            })
             ->orderBy('starts_at')
             ->get()
             ->map(function (Event $event) use ($serverCounts) {

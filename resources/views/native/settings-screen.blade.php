@@ -25,7 +25,7 @@
                             @endif
                         </native:column>
                         @if ($site['active'])
-                            <native:icon name="check-circle" :size="20" class="text-blue-600" />
+                            <native:icon name="checkmark.circle.fill" :size="20" class="text-blue-600" />
                         @endif
                     </native:pressable>
 

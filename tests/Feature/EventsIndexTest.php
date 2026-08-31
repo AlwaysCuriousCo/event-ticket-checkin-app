@@ -1,5 +1,6 @@
 <?php
 
+use App\Models\Attendee;
 use App\Models\Event;
 use App\Models\Site;
 use App\NativeComponents\EventHome;
@@ -53,4 +54,76 @@ it('opens an event', function () {
         ->assertNavigatedTo("/events/{$eventId}")
         ->followNavigation()
         ->assertScreen(EventHome::class);
+});
+
+it('treats an unparseable site timezone as UTC instead of crashing', function () {
+    $site = Site::factory()->create();
+    $event = Event::factory()->create([
+        'site_id' => $site->id,
+        'timezone' => 'UTC+0', // what WordPress reports for an offset-configured site
+        'starts_at' => now()->subDay()->format('Y-m-d H:i:s'),
+        'ends_at' => null,
+    ]);
+
+    expect($event->hasEnded())->toBeTrue();
+});
+
+it('reads WordPress offset timezones as real offsets', function () {
+    $site = Site::factory()->create();
+    $event = Event::factory()->make([
+        'site_id' => $site->id,
+        'timezone' => 'UTC-5',
+        'starts_at' => now()->addHours(2)->format('Y-m-d H:i:s'), // wall clock at UTC-5 → 7h out
+        'ends_at' => null,
+    ]);
+
+    expect($event->hasEnded())->toBeFalse();
+});
+
+it('filters the list by event title or venue', function () {
+    $site = Site::factory()->create();
+    Event::factory()->create([
+        'site_id' => $site->id,
+        'wp_event_id' => 503,
+        'title' => 'Charity Auction',
+        'venue' => 'The Grand Hall',
+        'starts_at' => now()->addDays(3)->format('Y-m-d H:i:s'),
+    ]);
+    Event::factory()->create([
+        'site_id' => $site->id,
+        'wp_event_id' => 504,
+        'title' => 'Monthly Meetup',
+        'venue' => 'Back Room',
+        'starts_at' => now()->addDays(4)->format('Y-m-d H:i:s'),
+    ]);
+
+    // Stay offline for both loads so these local-only events survive the
+    // authoritative-pull prune.
+    app(ApiClient::class)->failNextWith(new ApiException('offline'));
+    $screen = Native::test(EventsIndex::class);
+
+    app(ApiClient::class)->failNextWith(new ApiException('offline'));
+    $screen->set('query', 'charity') // set() fires the updatedQuery hook itself
+        ->assertSee('Charity Auction')
+        ->assertDontSee('Monthly Meetup');
+});
+
+it('prunes local events the server no longer returns', function () {
+    $site = Site::factory()->create();
+    $stale = Event::factory()->create(['site_id' => $site->id, 'wp_event_id' => 999, 'title' => 'Deleted On Server']);
+    Attendee::factory()->create(['site_id' => $site->id, 'wp_event_id' => 999]);
+
+    Native::test(EventsIndex::class)->assertDontSee('Deleted On Server');
+
+    expect(Event::whereKey($stale->id)->exists())->toBeFalse()
+        ->and(Attendee::where('wp_event_id', 999)->count())->toBe(0);
+});
+
+it('keeps cached events when offline', function () {
+    $site = Site::factory()->create();
+    Event::factory()->create(['site_id' => $site->id, 'wp_event_id' => 999, 'title' => 'Cached Event']);
+
+    app(ApiClient::class)->failNextWith(new ApiException('timeout'));
+
+    Native::test(EventsIndex::class)->assertSee('Cached Event');
 });

@@ -68,6 +68,12 @@ class Site extends Model
     /** Root of the companion plugin's REST namespace on this site. */
     public function apiBase(): string
     {
-        return rtrim($this->base_url, '/').'/wp-json/event-ticket-scanner/v1';
+        return static::apiBaseFor($this->base_url);
+    }
+
+    /** Same root for a site that isn't stored yet (pairing). */
+    public static function apiBaseFor(string $baseUrl): string
+    {
+        return rtrim($baseUrl, '/').'/wp-json/event-ticket-scanner/v1';
     }
 }
