@@ -1,7 +1,9 @@
-<native:top-bar title="Profile" subtitle="{{ $deviceIdentity }}" display-mode="large" />
-
 <native:scroll-view class="w-full h-full bg-white">
     <native:column class="w-full p-4 gap-4">
+        <native:column class="w-full gap-0 pt-2">
+            <native:text class="text-3xl font-extrabold text-zinc-900">Profile</native:text>
+            <native:text class="text-sm text-zinc-500">{{ $deviceIdentity }}</native:text>
+        </native:column>
         @if ($notice !== '')
             <native:column class="w-full p-3 rounded-lg bg-blue-50 border border-blue-200">
                 <native:text class="text-sm text-blue-800">{{ $notice }}</native:text>

@@ -27,6 +27,13 @@ class EventsIndex extends NativeComponent
 
     public string $error = '';
 
+    /**
+     * Tab chrome drops display-mode="large" when folding a screen's
+     * top-bar (NativeRootTabs has no navDisplayMode), leaving a stubby
+     * centered title — so hide the bar and render our own large heading.
+     */
+    protected bool $hidesNavBar = true;
+
     protected ?Site $site = null;
 
     public function mount(): void

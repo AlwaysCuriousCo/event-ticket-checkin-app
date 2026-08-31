@@ -31,6 +31,9 @@ class SettingsScreen extends NativeComponent
 
     public string $notice = '';
 
+    /** Same as EventsIndex: large in-content heading beats the folded stub. */
+    protected bool $hidesNavBar = true;
+
     /** Site queued for removal while the confirm dialog is up. */
     public int $removingSiteId = 0;
 

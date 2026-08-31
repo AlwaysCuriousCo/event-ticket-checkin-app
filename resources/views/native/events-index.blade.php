@@ -1,7 +1,9 @@
-<native:top-bar title="Events" subtitle="{{ $siteName }}" display-mode="large" />
-
 <native:refreshable class="w-full h-full bg-white" @refresh="refresh">
     <native:column class="w-full p-4 gap-3">
+        <native:column class="w-full gap-0 pt-2">
+            <native:text class="text-3xl font-extrabold text-zinc-900">Events</native:text>
+            <native:text class="text-sm text-zinc-500">{{ $siteName }}</native:text>
+        </native:column>
         <native:outlined-text-input native:model.debounce.300ms="query" label="Search"
                                     placeholder="Event or venue" />
 
