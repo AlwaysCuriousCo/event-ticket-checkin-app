@@ -2,6 +2,7 @@
 
 namespace App\NativeComponents;
 
+use Illuminate\Support\Facades\Cache;
 use Illuminate\View\View;
 use Native\Mobile\Edge\NativeComponent;
 
@@ -19,8 +20,12 @@ class BrowseScreen extends NativeComponent
     public function mount(): void
     {
         // navigate() payload arrives as data(); params are route segments.
-        $this->url = (string) $this->data('url', '');
-        $this->title = (string) $this->data('title', 'Browser');
+        // On-device the payload can arrive empty (vendor drops it), so
+        // senders also stash it in cache — pull that as the fallback.
+        $cached = (array) Cache::pull('ticketscanner.browse', []);
+
+        $this->url = (string) $this->data('url', $cached['url'] ?? '');
+        $this->title = (string) $this->data('title', $cached['title'] ?? 'Browser');
 
         if (! str_starts_with($this->url, 'http')) {
             $this->back();

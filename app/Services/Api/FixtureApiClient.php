@@ -174,6 +174,48 @@ class FixtureApiClient implements ApiClient
         return $this->load('pair.json');
     }
 
+    public function tickets(Site $site, int $wpEventId): array
+    {
+        $this->maybeFail();
+
+        return $this->load('tickets.json');
+    }
+
+    public function registerWalkUp(Site $site, int $wpEventId, array $payload): array
+    {
+        $this->maybeFail();
+
+        $serverTime = now()->utc()->format('Y-m-d\TH:i:s.u\Z');
+        $ticket = collect($this->load('tickets.json')['tickets'])->firstWhere('id', $payload['ticket_id']);
+
+        if (! $ticket) {
+            throw new ApiException('Ticket not found.', 404, 'event_ticket_scanner_ticket_not_found');
+        }
+
+        $checkIn = $payload['check_in'] ?? true;
+
+        $attendee = [
+            'id' => max(array_keys($this->attendees)) + 1,
+            'event_id' => $wpEventId,
+            'ticket_id' => $ticket['id'],
+            'ticket_name' => $ticket['name'],
+            'provider' => $ticket['provider'],
+            'holder_name' => $payload['name'],
+            'holder_email' => $payload['email'] ?? '',
+            'security_code' => substr(md5('fixture-walkup-'.count($this->attendees)), 0, 8),
+            'order_id' => $ticket['provider'] === 'rsvp' ? null : 8100 + count($this->attendees),
+            'order_status' => 'completed',
+            'checked_in' => $checkIn,
+            'checked_in_at' => $checkIn ? $serverTime : null,
+            'checked_in_by' => $checkIn ? ($payload['device_id'] ?? '') : null,
+            'updated_at' => $serverTime,
+        ];
+
+        $this->attendees[$attendee['id']] = $attendee;
+
+        return ['attendee' => $attendee, 'server_time' => $serverTime];
+    }
+
     private function maybeFail(): void
     {
         if ($this->failNext) {

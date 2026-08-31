@@ -10,6 +10,7 @@ use App\NativeComponents\Home;
 use App\NativeComponents\ScanScreen;
 use App\NativeComponents\SettingsScreen;
 use App\NativeComponents\StatsScreen;
+use App\NativeComponents\WalkUpScreen;
 use App\NativeLayouts\AppLayout;
 use Illuminate\Support\Facades\Route;
 
@@ -26,6 +27,7 @@ Route::nativeGroup(AppLayout::class, function () {
     Route::native('/events/{event}', EventHome::class);
     Route::native('/events/{event}/attendees', AttendeesIndex::class);
     Route::native('/events/{event}/stats', StatsScreen::class);
+    Route::native('/events/{event}/walkup', WalkUpScreen::class);
     Route::native('/attendees/{attendee}', AttendeeDetail::class);
     Route::native('/settings', SettingsScreen::class);
     Route::native('/browse', BrowseScreen::class);

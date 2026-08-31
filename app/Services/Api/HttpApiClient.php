@@ -54,6 +54,22 @@ class HttpApiClient implements ApiClient
         return $this->get($site, "/events/{$wpEventId}/stats");
     }
 
+    public function tickets(Site $site, int $wpEventId): array
+    {
+        return $this->get($site, "/events/{$wpEventId}/tickets");
+    }
+
+    public function registerWalkUp(Site $site, int $wpEventId, array $payload): array
+    {
+        try {
+            $response = $this->request($site)->post($site->apiBase()."/events/{$wpEventId}/register", $payload);
+        } catch (ConnectionException $e) {
+            throw new ApiException($e->getMessage());
+        }
+
+        return $this->decode($response);
+    }
+
     private function get(Site $site, string $path, array $query = []): array
     {
         try {

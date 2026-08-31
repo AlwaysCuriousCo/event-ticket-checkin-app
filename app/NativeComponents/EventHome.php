@@ -8,8 +8,6 @@ use App\Services\Api\ApiException;
 use App\Services\SyncEngine;
 use Illuminate\View\View;
 use Native\Mobile\Edge\NativeComponent;
-use Native\Mobile\Facades\Browser;
-use Throwable;
 
 class EventHome extends NativeComponent
 {
@@ -59,28 +57,13 @@ class EventHome extends NativeComponent
     }
 
     /**
-     * Walk-up sales/RSVPs happen on the site itself — send the organizer to
-     * the event page in the system browser rather than reimplementing ticket
-     * purchase in the app. `?p={id}` avoids needing the permalink in the API.
+     * Cash/comp walk-ups register in-app via the plugin API; the walk-up
+     * screen hands card buyers to the site's own checkout.
      */
     public function registerWalkUp(): void
     {
-        if (! $this->event) {
-            return;
-        }
-
-        $url = rtrim($this->event->site->base_url, '/').'/?p='.$this->event->wp_event_id;
-
-        // Browser.Open is only bridged in builds with the premium plugins;
-        // fall back to the in-app webview screen when it isn't there.
-        try {
-            $opened = Browser::open($url);
-        } catch (Throwable) {
-            $opened = false;
-        }
-
-        if (! $opened) {
-            $this->navigate('/browse', ['url' => $url, 'title' => 'Register walk-up']);
+        if ($this->event) {
+            $this->navigate("/events/{$this->event->id}/walkup");
         }
     }
 

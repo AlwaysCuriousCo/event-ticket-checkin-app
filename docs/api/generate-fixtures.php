@@ -184,6 +184,40 @@ $fixtures = [
         ],
         'server_time' => '2026-09-12T18:03:12Z',
     ],
+    'tickets.json' => [
+        'tickets' => array_map(
+            fn (int $id, array $type) => [
+                'id' => $id,
+                'name' => $type['name'],
+                'provider' => $type['provider'],
+                'price' => $type['provider'] === 'rsvp' ? 0 : 25,
+            ],
+            array_keys($ticketTypes),
+            $ticketTypes,
+        ),
+    ],
+
+    // Walk-up registration: a fresh cash GA attendee, checked in at the door.
+    'register.json' => [
+        'attendee' => [
+            'id' => 9101,
+            'event_id' => EVENT_ID,
+            'ticket_id' => 701,
+            'ticket_name' => 'General Admission',
+            'provider' => 'tickets-commerce',
+            'holder_name' => 'Pat Walkup',
+            'holder_email' => 'pat@example.test',
+            'security_code' => securityCode(9101),
+            'order_id' => 8101,
+            'order_status' => 'completed',
+            'checked_in' => true,
+            'checked_in_at' => SERVER_TIME,
+            'checked_in_by' => 'door-ipad-1',
+            'updated_at' => SERVER_TIME,
+        ],
+        'server_time' => SERVER_TIME,
+    ],
+
     'pair.json' => [
         'site_name' => 'Example Event Site',
         'site_url' => SITE_URL,

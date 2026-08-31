@@ -1,0 +1,19 @@
+{
+    "attendee": {
+        "id": 9101,
+        "event_id": 501,
+        "ticket_id": 701,
+        "ticket_name": "General Admission",
+        "provider": "tickets-commerce",
+        "holder_name": "Pat Walkup",
+        "holder_email": "pat@example.test",
+        "security_code": "e6d67bec",
+        "order_id": 8101,
+        "order_status": "completed",
+        "checked_in": true,
+        "checked_in_at": "2026-08-11T16:20:00Z",
+        "checked_in_by": "door-ipad-1",
+        "updated_at": "2026-08-11T16:20:00Z"
+    },
+    "server_time": "2026-08-11T16:20:00Z"
+}
