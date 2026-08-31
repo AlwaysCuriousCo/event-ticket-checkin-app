@@ -6,6 +6,7 @@ use App\Models\Attendee;
 use App\Models\Event;
 use App\Models\Site;
 use App\Services\CheckinService;
+use App\Services\NativeScanner;
 use App\Services\Qr\QrParser;
 use App\Services\Scan\ScanOutcome;
 use App\Services\Scan\ScanValidator;
@@ -17,7 +18,6 @@ use Native\Mobile\Edge\NativeComponent;
 use Native\Mobile\Events\Scanner\CodeScanned;
 use Native\Mobile\Events\Scanner\ScannerCancelled;
 use Native\Mobile\Facades\Haptics;
-use Native\Mobile\Facades\Scanner;
 use Throwable;
 
 /**
@@ -118,14 +118,7 @@ class ScanScreen extends NativeComponent
 
     public function startScanner(): void
     {
-        try {
-            Scanner::scan()
-                ->prompt('Point at a ticket QR code')
-                ->formats(['qr'])
-                ->continuous()
-                ->id('door-scan')
-                ->scan();
-        } catch (Throwable) {
+        if (! app(NativeScanner::class)->start('door-scan', 'Point at a ticket QR code', continuous: true)) {
             // Native scanner unavailable (plugin not compiled into this build).
             $this->phase = 'unavailable';
         }

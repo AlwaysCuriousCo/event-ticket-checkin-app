@@ -6,6 +6,7 @@ use App\Models\Site;
 use App\Services\Api\ApiClient;
 use App\Services\Api\ApiException;
 use App\Services\DeviceIdentity;
+use App\Services\NativeScanner;
 use App\Services\Qr\PairingQr;
 use App\Services\Qr\QrParser;
 use App\Services\SiteCredentials;
@@ -13,8 +14,6 @@ use Illuminate\View\View;
 use Native\Mobile\Attributes\On;
 use Native\Mobile\Edge\NativeComponent;
 use Native\Mobile\Events\Scanner\CodeScanned;
-use Native\Mobile\Facades\Scanner;
-use Throwable;
 
 class ConnectSite extends NativeComponent
 {
@@ -51,13 +50,7 @@ class ConnectSite extends NativeComponent
     {
         $this->error = '';
 
-        try {
-            Scanner::scan()
-                ->prompt('Point at the pairing QR in wp-admin')
-                ->formats(['qr'])
-                ->id('pair-scan')
-                ->scan();
-        } catch (Throwable) {
+        if (! app(NativeScanner::class)->start('pair-scan', 'Point at the pairing QR in wp-admin')) {
             $this->scannerUnavailable = true;
             $this->error = 'QR scanning is not available in this build — enter the details manually.';
         }

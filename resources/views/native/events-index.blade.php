@@ -17,10 +17,7 @@
                               @tap="open({{ $event['id'] }})">
                 <native:text class="text-lg font-semibold text-zinc-900">{{ $event['title'] }}</native:text>
                 <native:text class="text-sm text-zinc-500">{{ $event['date'] }}@if ($event['venue']) · {{ $event['venue'] }}@endif</native:text>
-                <native:row class="w-full items-center justify-between">
-                    <native:text class="text-sm text-zinc-600">{{ $event['checked_in_count'] }} / {{ $event['attendee_count'] }} checked in</native:text>
-                    <native:icon name="chevron.right" :size="16" class="text-zinc-400" />
-                </native:row>
+                <native:text class="text-sm text-zinc-600">{{ $event['checked_in_count'] }} / {{ $event['attendee_count'] }} checked in</native:text>
                 <native:progress-bar :value="$event['attendee_count'] > 0 ? $event['checked_in_count'] / $event['attendee_count'] : 0"
                                      color="#16a34a" track-color="#e4e4e7" class="w-full" />
             </native:pressable>
@@ -53,10 +50,7 @@
                                       @tap="open({{ $event['id'] }})">
                         <native:text class="text-lg font-semibold text-zinc-500">{{ $event['title'] }}</native:text>
                         <native:text class="text-sm text-zinc-400">{{ $event['date'] }}@if ($event['venue']) · {{ $event['venue'] }}@endif</native:text>
-                        <native:row class="w-full items-center justify-between">
-                            <native:text class="text-sm text-zinc-400">{{ $event['checked_in_count'] }} / {{ $event['attendee_count'] }} checked in</native:text>
-                            <native:icon name="chevron.right" :size="16" class="text-zinc-300" />
-                        </native:row>
+                        <native:text class="text-sm text-zinc-400">{{ $event['checked_in_count'] }} / {{ $event['attendee_count'] }} checked in</native:text>
                     </native:pressable>
                 @endforeach
             @endif
