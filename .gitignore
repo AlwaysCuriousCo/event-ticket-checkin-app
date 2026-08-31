@@ -29,3 +29,6 @@ Thumbs.db
 
 # Local dev CA bundles (machine-specific; copy your own, see .env.example)
 resources/certs/
+
+# Credential files (keystores, private keys, etc.)
+/credentials/
