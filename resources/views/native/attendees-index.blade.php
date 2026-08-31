@@ -48,7 +48,15 @@
                                   supporting="{{ $row['ticket'] }} · {{ $row['email'] }}"
                                   trailingIcon="{{ $row['status_glyph'][0] }}" trailingIconColor="{{ $row['status_glyph'][1] }}"
                                   a11y-label="{{ $row['name'] }}, {{ $row['status_glyph'][2] }}"
-                                  @tap="open({{ $row['id'] }})" />
+                                  @tap="open({{ $row['id'] }})"
+                                  {{-- Swiping an ineligible row reveals the reason large;
+                                       tapping it opens the attendee detail. --}}
+                                  :leading-actions="[[
+                                      'method' => 'open('.$row['id'].')',
+                                      'label' => ucfirst($row['status_glyph'][2]),
+                                      'icon' => $row['status_glyph'][0],
+                                      'tint' => $row['status_glyph'][1],
+                                  ]]" />
             @else
                 <native:list-item native:key="attendee-{{ $row['id'] }}" ref="attendee-{{ $row['id'] }}"
                                   headline="{{ $row['name'] }}"
