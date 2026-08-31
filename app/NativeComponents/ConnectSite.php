@@ -133,12 +133,6 @@ class ConnectSite extends NativeComponent
             return;
         }
 
-        if (Site::where('base_url', $url)->where('username', trim($this->username))->exists()) {
-            $this->error = 'That site is already connected for this user.';
-
-            return;
-        }
-
         $this->finishConnect($url, trim($this->username), trim($this->password));
     }
 
@@ -148,6 +142,15 @@ class ConnectSite extends NativeComponent
      */
     private function finishConnect(string $url, string $username, string $password, ?string $name = null): void
     {
+        // Guarded here so both paths are covered — re-scanning the same
+        // pairing QR must not create a duplicate site row.
+        if (Site::where('base_url', $url)->where('username', $username)->exists()) {
+            $this->busy = false;
+            $this->error = 'That site is already connected for this user.';
+
+            return;
+        }
+
         $this->busy = true;
 
         // The password must be in SecureStorage BEFORE the verify call — the
@@ -179,6 +182,10 @@ class ConnectSite extends NativeComponent
         }
 
         $site->update(['name' => $me['site_name'], 'last_verified_at' => now()]);
+
+        // The freshly connected site becomes the active one — staff expect
+        // to land on the site they just paired, not the previous one.
+        $site->activate();
 
         $this->password = ''; // never keep it in component state longer than needed
         $this->busy = false;

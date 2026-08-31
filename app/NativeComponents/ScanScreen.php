@@ -110,6 +110,24 @@ class ScanScreen extends NativeComponent
         $this->startScanner();
     }
 
+    public function onResume(): void
+    {
+        // Scan tab only: the active site may have changed on Profile while
+        // this screen sat in the tab stack — scans must hit the new site.
+        if ($this->anyEvent) {
+            $site = Site::current();
+
+            if (! $site) {
+                $this->replace('/connect');
+
+                return;
+            }
+
+            $this->site = $site;
+            $this->contextLabel = 'All events · '.$site->name;
+        }
+    }
+
     /** The pushed, event-pinned scanner is a detail screen; the tab isn't. */
     public function tabBarOptions(): ?TabBarOptions
     {

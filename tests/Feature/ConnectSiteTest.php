@@ -162,3 +162,39 @@ it('offers a way back only when a site is already connected', function () {
 
     expect(Native::test(ConnectSite::class)->get('canCancel'))->toBeTrue();
 });
+
+it('activates the newly connected site', function () {
+    $old = Site::factory()->create(['name' => 'Old Site', 'base_url' => 'https://old.test', 'is_active' => true]);
+
+    $qr = json_encode([
+        'v' => 1,
+        'type' => 'event-ticket-scanner-pair',
+        'url' => 'https://example.test',
+        'user' => 'doorstaff',
+        'token' => str_repeat('a1b2c3d4', 5),
+    ]);
+
+    Native::test(ConnectSite::class)->call('onCodeScanned', $qr, 'qr');
+
+    expect(Site::current()->base_url)->toBe('https://example.test')
+        ->and($old->refresh()->is_active)->toBeFalse();
+});
+
+it('rejects re-scanning a pairing QR for an already-connected site', function () {
+    // The pair fixture resolves to doorstaff @ https://example.test.
+    Site::factory()->create(['base_url' => 'https://example.test', 'username' => 'doorstaff']);
+
+    $qr = json_encode([
+        'v' => 1,
+        'type' => 'event-ticket-scanner-pair',
+        'url' => 'https://example.test',
+        'user' => 'doorstaff',
+        'token' => str_repeat('a1b2c3d4', 5),
+    ]);
+
+    Native::test(ConnectSite::class)
+        ->call('onCodeScanned', $qr, 'qr')
+        ->assertSee('already connected');
+
+    expect(Site::count())->toBe(1);
+});

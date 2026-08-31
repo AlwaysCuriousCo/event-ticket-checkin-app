@@ -5,6 +5,7 @@ use App\Models\CheckinOperation;
 use App\Models\Event;
 use App\Models\Site;
 use App\NativeComponents\ScanScreen;
+use App\Services\NativeScanner;
 use Native\Mobile\Events\Scanner\CodeScanned;
 use Native\Mobile\Events\Scanner\ScannerCancelled;
 use Native\Mobile\Testing\Native;
@@ -223,4 +224,32 @@ it('keeps GREEN on screen while linked tickets remain, then auto-dismisses when 
     $screen->call('checkinMate', $mate->id)
         ->set('resultShownAt', microtime(true) - 10)
         ->call('tick')->assertSet('phase', 'scanning');
+});
+
+it('scan tab re-reads the active site on resume after a switch', function () {
+    Site::factory()->create(['name' => 'First Site', 'is_active' => true]);
+    $second = Site::factory()->create(['name' => 'Second Site', 'base_url' => 'https://second.test', 'is_active' => false]);
+
+    $screen = Native::test(ScanScreen::class)
+        ->assertSet('contextLabel', 'All events · First Site');
+
+    $second->activate();
+
+    $screen->call('onResume')
+        ->assertSet('contextLabel', 'All events · Second Site');
+});
+
+it('group mates never cross event boundaries', function () {
+    $site = Site::factory()->create();
+    $a = Attendee::factory()->create(['site_id' => $site->id, 'wp_event_id' => 501, 'wp_order_id' => 8000]);
+    Attendee::factory()->create(['site_id' => $site->id, 'wp_event_id' => 502, 'wp_order_id' => 8000]);
+    $sameEvent = Attendee::factory()->create(['site_id' => $site->id, 'wp_event_id' => 501, 'wp_order_id' => 8000]);
+
+    expect($a->groupMates()->pluck('id')->all())->toBe([$sameEvent->id]);
+});
+
+it('scanner start reports failure for decoded array error results', function () {
+    Native::fakeBridge()->respondTo('Scanner.Scan', ['status' => 'error', 'code' => 'NO_DEVICE']);
+
+    expect(app(NativeScanner::class)->start('test', 'Scan'))->toBeFalse();
 });

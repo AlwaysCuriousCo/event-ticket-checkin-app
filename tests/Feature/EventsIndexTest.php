@@ -7,6 +7,7 @@ use App\NativeComponents\EventHome;
 use App\NativeComponents\EventsIndex;
 use App\Services\Api\ApiClient;
 use App\Services\Api\ApiException;
+use App\Services\Api\FixtureApiClient;
 use Native\Mobile\Testing\Native;
 
 covers(EventsIndex::class);
@@ -97,15 +98,67 @@ it('filters the list by event title or venue', function () {
         'starts_at' => now()->addDays(4)->format('Y-m-d H:i:s'),
     ]);
 
-    // Stay offline for both loads so these local-only events survive the
-    // authoritative-pull prune.
+    // Stay offline for the mount pull so these local-only events survive
+    // the authoritative-pull prune. Search itself never hits the server.
     app(ApiClient::class)->failNextWith(new ApiException('offline'));
-    $screen = Native::test(EventsIndex::class);
-
-    app(ApiClient::class)->failNextWith(new ApiException('offline'));
-    $screen->set('query', 'charity') // set() fires the updatedQuery hook itself
+    Native::test(EventsIndex::class)
+        ->set('query', 'charity') // set() fires the updatedQuery hook itself
         ->assertSee('Charity Auction')
         ->assertDontSee('Monthly Meetup');
+});
+
+it('searches locally without re-pulling from the server', function () {
+    Site::factory()->create();
+
+    $screen = Native::test(EventsIndex::class)->assertSee('Fixture Fest 2026');
+
+    // If typing triggered a pull, this armed failure would flip the screen
+    // to the offline banner — a local filter never consumes it.
+    app(ApiClient::class)->failNextWith(new ApiException('offline'));
+
+    $screen->set('query', 'fixture')
+        ->assertSet('error', '')
+        ->assertSee('Fixture Fest 2026');
+});
+
+it('walks every page before pruning', function () {
+    $site = Site::factory()->create();
+    Event::factory()->create(['site_id' => $site->id, 'wp_event_id' => 601, 'title' => 'Second Page Event']);
+
+    // Two-page server response: 601 only appears on page 2. A prune that
+    // trusts page 1 alone would delete it.
+    app()->instance(ApiClient::class, new class(base_path('docs/api/fixtures')) extends FixtureApiClient
+    {
+        public function events(Site $site, int $page = 1): array
+        {
+            $first = parent::events($site, $page)['events'];
+
+            return $page === 1
+                ? ['events' => $first, 'total' => count($first) + 1, 'page' => 1, 'per_page' => count($first), 'has_more' => true]
+                : ['events' => [[
+                    'id' => 601, 'title' => 'Second Page Event',
+                    'start_date' => now()->addDay()->format('Y-m-d H:i:s'),
+                    'end_date' => now()->addDay()->addHours(2)->format('Y-m-d H:i:s'),
+                    'timezone' => 'UTC', 'venue' => null,
+                    'attendee_count' => 0, 'checked_in_count' => 0,
+                ]], 'total' => 2, 'page' => 2, 'per_page' => 1, 'has_more' => false];
+        }
+    });
+
+    Native::test(EventsIndex::class)->assertSee('Second Page Event');
+
+    expect(Event::where('wp_event_id', 601)->exists())->toBeTrue();
+});
+
+it('re-reads the active site on resume after a switch', function () {
+    Site::factory()->create(['name' => 'First Site', 'is_active' => true]);
+    $second = Site::factory()->create(['name' => 'Second Site', 'base_url' => 'https://second.test', 'is_active' => false]);
+
+    $screen = Native::test(EventsIndex::class)->assertSet('siteName', 'First Site');
+
+    $second->activate();
+
+    $screen->call('onResume')->assertSet('siteName', 'Second Site');
 });
 
 it('prunes local events the server no longer returns', function () {

@@ -52,15 +52,24 @@ class EventsIndex extends NativeComponent
 
     public function onResume(): void
     {
-        if ($this->site) {
-            $this->loadEvents();
+        // Re-resolve: the user may have switched sites on the Profile tab
+        // while this screen sat in the tab stack.
+        $this->site = Site::current();
+
+        if (! $this->site) {
+            $this->replace('/connect');
+
+            return;
         }
+
+        $this->siteName = $this->site->name;
+        $this->loadEvents();
     }
 
-    /** Re-filter as the search box changes. */
+    /** Re-filter as the search box changes — local only, no server pull. */
     public function updatedQuery(string $value): void
     {
-        $this->loadEvents();
+        $this->rebuildLists();
     }
 
     public function refresh(): void
@@ -90,23 +99,31 @@ class EventsIndex extends NativeComponent
         $serverCounts = [];
 
         try {
-            $response = app(ApiClient::class)->events($this->site);
+            // Walk every page before pruning — treating page 1 as the full
+            // list would delete events that live on later pages.
+            $page = 1;
 
-            foreach ($response['events'] as $row) {
-                Event::updateOrCreate(
-                    ['site_id' => $this->site->id, 'wp_event_id' => $row['id']],
-                    [
-                        'title' => $row['title'],
-                        'starts_at' => $row['start_date'],
-                        'ends_at' => $row['end_date'],
-                        'timezone' => $row['timezone'],
-                        'venue' => $row['venue'] ?? null,
-                        'allow_walkup' => (bool) ($row['allow_walkup'] ?? true),
-                    ],
-                );
+            do {
+                $response = app(ApiClient::class)->events($this->site, $page);
 
-                $serverCounts[$row['id']] = [$row['attendee_count'], $row['checked_in_count']];
-            }
+                foreach ($response['events'] as $row) {
+                    Event::updateOrCreate(
+                        ['site_id' => $this->site->id, 'wp_event_id' => $row['id']],
+                        [
+                            'title' => $row['title'],
+                            'starts_at' => $row['start_date'],
+                            'ends_at' => $row['end_date'],
+                            'timezone' => $row['timezone'],
+                            'venue' => $row['venue'] ?? null,
+                            'allow_walkup' => (bool) ($row['allow_walkup'] ?? true),
+                        ],
+                    );
+
+                    $serverCounts[$row['id']] = [$row['attendee_count'], $row['checked_in_count']];
+                }
+
+                $page++;
+            } while (($response['has_more'] ?? false) && $page <= 50);
 
             // The pull is the authoritative full list: drop local events the
             // server no longer has (deleted/unpublished), and their cached
@@ -130,6 +147,12 @@ class EventsIndex extends NativeComponent
             $this->error = 'Offline — showing cached events.';
         }
 
+        $this->rebuildLists($serverCounts);
+    }
+
+    /** Build the upcoming/past lists from local storage, applying the filter. */
+    private function rebuildLists(array $serverCounts = []): void
+    {
         $term = trim($this->query);
 
         $rows = Event::query()

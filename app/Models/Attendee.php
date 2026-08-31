@@ -46,6 +46,9 @@ class Attendee extends Model
 
         return static::query()
             ->where('site_id', $this->site_id)
+            // Same event only: a multi-event order must not surface (or
+            // check in) tickets that belong to a different door.
+            ->where('wp_event_id', $this->wp_event_id)
             ->where('wp_order_id', $this->wp_order_id)
             ->whereKeyNot($this->id)
             ->orderBy('holder_name')

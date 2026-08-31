@@ -28,7 +28,14 @@ class NativeScanner
             'event' => CodeScanned::class,
         ]));
 
-        $decoded = is_string($result) ? json_decode($result, true) : null;
+        // The dev bridge returns already-decoded arrays/objects; a real
+        // device returns JSON strings. Normalize both before probing.
+        $decoded = match (true) {
+            is_string($result) => json_decode($result, true),
+            is_array($result) => $result,
+            is_object($result) => (array) $result,
+            default => null,
+        };
 
         // No/odd payload back from a registered function still counts as
         // started; only an explicit bridge error (FUNCTION_NOT_FOUND,
