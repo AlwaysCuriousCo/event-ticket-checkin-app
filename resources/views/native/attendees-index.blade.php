@@ -16,9 +16,11 @@
         </native:row>
     </native:column>
 
-    <native:scroll-view class="flex-1 w-full">
-        <native:column class="w-full px-4 gap-0">
-            @forelse ($rows as $row)
+    {{-- SwiftUI only attaches swipe actions to rows of a real List —
+         list-items loose in a scroll-view swallow the gesture (and the
+         edge swipe pops the screen instead). --}}
+    <native:list plain class="flex-1 w-full">
+        @forelse ($rows as $row)
                 <native:list-item native:key="attendee-{{ $row['id'] }}" ref="attendee-{{ $row['id'] }}"
                                   headline="{{ $row['name'] }}"
                                   supporting="{{ $row['ticket'] }} · {{ $row['email'] }}"
@@ -34,11 +36,10 @@
                                   ]]"
                                   @endif
                 />
-            @empty
-                <native:column class="w-full items-center p-8">
-                    <native:text class="text-base text-zinc-500 text-center">No attendees match.</native:text>
-                </native:column>
-            @endforelse
-        </native:column>
-    </native:scroll-view>
+        @empty
+            <native:column class="w-full items-center p-8">
+                <native:text class="text-base text-zinc-500 text-center">No attendees match.</native:text>
+            </native:column>
+        @endforelse
+    </native:list>
 </native:column>
