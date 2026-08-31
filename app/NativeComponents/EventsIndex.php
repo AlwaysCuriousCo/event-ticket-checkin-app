@@ -36,6 +36,15 @@ class EventsIndex extends NativeComponent
 
     protected ?Site $site = null;
 
+    /**
+     * Counts from the last successful pull, keyed by wp_event_id. Search
+     * rebuilds must reuse these — this screen never syncs attendees, so
+     * local rows would zero out fresh server totals.
+     *
+     * @var array<int, array{0: int, 1: int}>
+     */
+    protected array $serverCounts = [];
+
     public function mount(): void
     {
         $this->site = Site::current();
@@ -143,16 +152,18 @@ class EventsIndex extends NativeComponent
                     ->whereIn('wp_event_id', $goneEventIds)
                     ->delete();
             }
+            $this->serverCounts = $serverCounts;
         } catch (ApiException) {
             $this->error = 'Offline — showing cached events.';
         }
 
-        $this->rebuildLists($serverCounts);
+        $this->rebuildLists();
     }
 
     /** Build the upcoming/past lists from local storage, applying the filter. */
-    private function rebuildLists(array $serverCounts = []): void
+    private function rebuildLists(): void
     {
+        $serverCounts = $this->serverCounts;
         $term = trim($this->query);
 
         $rows = Event::query()

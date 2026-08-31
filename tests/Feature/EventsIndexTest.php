@@ -180,3 +180,16 @@ it('keeps cached events when offline', function () {
 
     Native::test(EventsIndex::class)->assertSee('Cached Event');
 });
+
+it('keeps server counts while searching', function () {
+    Site::factory()->create();
+
+    // Mount pulls 14/50 from the server; this screen never syncs attendee
+    // rows, so a search rebuild must reuse those counts, not local zeros.
+    Native::test(EventsIndex::class)
+        ->assertSee('14 / 50 checked in')
+        ->set('query', 'fixture')
+        ->assertSee('14 / 50 checked in')
+        ->set('query', '')
+        ->assertSee('14 / 50 checked in');
+});
