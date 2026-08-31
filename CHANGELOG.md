@@ -1,6 +1,10 @@
 # Release Notes
 
-## [Unreleased](https://github.com/laravel/laravel/compare/v0.9.2...main)
+## [Unreleased](https://github.com/laravel/laravel/compare/v1.0.0...main)
+
+## [v1.0.0](https://github.com/laravel/laravel/compare/v0.9.2...v1.0.0) - 2026-08-31
+
+**Full Changelog**: https://github.com/codearachnid/event-ticket-scanner-app/compare/v0.9.2...v1.0.0
 
 ## [v0.9.2](https://github.com/laravel/laravel/compare/v0.9.0...v0.9.2) - 2026-08-31
 
