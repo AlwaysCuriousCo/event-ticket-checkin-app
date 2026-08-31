@@ -5,9 +5,16 @@ namespace App\NativeComponents;
 use App\Models\Site;
 use App\Services\Api\ApiClient;
 use App\Services\Api\ApiException;
+use App\Services\DeviceIdentity;
+use App\Services\Qr\PairingQr;
+use App\Services\Qr\QrParser;
 use App\Services\SiteCredentials;
 use Illuminate\View\View;
+use Native\Mobile\Attributes\On;
 use Native\Mobile\Edge\NativeComponent;
+use Native\Mobile\Events\Scanner\CodeScanned;
+use Native\Mobile\Facades\Scanner;
+use Throwable;
 
 class ConnectSite extends NativeComponent
 {
@@ -20,6 +27,100 @@ class ConnectSite extends NativeComponent
     public string $error = '';
 
     public bool $busy = false;
+
+    /** Set when the native scanner isn't in this build — hides the QR path. */
+    public bool $scannerUnavailable = false;
+
+    /**
+     * Reached from Profile → Connect another site, rather than first-run
+     * onboarding — so there is somewhere to go back to.
+     */
+    public bool $canCancel = false;
+
+    public function mount(): void
+    {
+        $this->canCancel = Site::query()->exists();
+    }
+
+    /**
+     * Pair by scanning the QR from wp-admin (Tickets → Scanner App). The
+     * token in it is single-use and expires in 5 minutes; the server trades
+     * it for an Application Password so nobody types credentials at a door.
+     */
+    public function scanPairingCode(): void
+    {
+        $this->error = '';
+
+        try {
+            Scanner::scan()
+                ->prompt('Point at the pairing QR in wp-admin')
+                ->formats(['qr'])
+                ->id('pair-scan')
+                ->scan();
+        } catch (Throwable) {
+            $this->scannerUnavailable = true;
+            $this->error = 'QR scanning is not available in this build — enter the details manually.';
+        }
+    }
+
+    #[On(CodeScanned::class)]
+    public function onCodeScanned(string $data, string $format, ?string $id = null): void
+    {
+        if ($this->busy) {
+            return;
+        }
+
+        $parsed = app(QrParser::class)->parse($data);
+
+        if (! $parsed instanceof PairingQr) {
+            $this->error = 'That is not a pairing QR. In wp-admin go to Tickets → Scanner App.';
+
+            return;
+        }
+
+        // Legacy ET+ QRs carry no token: prefill what we know and let the
+        // organizer finish with an application password.
+        if (! $parsed->isExchangeable()) {
+            $this->siteUrl = $parsed->url;
+            $this->username = $parsed->user ?? $this->username;
+            $this->error = 'That QR has no pairing code — enter an application password to finish.';
+
+            return;
+        }
+
+        $this->pairWith($parsed);
+    }
+
+    private function pairWith(PairingQr $qr): void
+    {
+        $url = $this->normalizeUrl($qr->url);
+
+        if ($url === null) {
+            $this->error = 'That pairing QR points at an address this app cannot use.';
+
+            return;
+        }
+
+        $this->busy = true;
+
+        try {
+            $paired = app(ApiClient::class)->pair($url, $qr->token, app(DeviceIdentity::class)->id());
+        } catch (ApiException $e) {
+            $this->busy = false;
+            $this->error = $e->status === 403
+                ? 'This pairing code is invalid or has expired. Generate a fresh one in wp-admin.'
+                : "Pairing failed: {$e->getMessage()}";
+
+            return;
+        }
+
+        $this->finishConnect(
+            $url,
+            (string) $paired['username'],
+            (string) $paired['app_password'],
+            (string) ($paired['site_name'] ?? parse_url($url, PHP_URL_HOST)),
+        );
+    }
 
     public function connect(): void
     {
@@ -45,17 +146,26 @@ class ConnectSite extends NativeComponent
             return;
         }
 
+        $this->finishConnect($url, trim($this->username), trim($this->password));
+    }
+
+    /**
+     * Shared tail of both paths (typed credentials and scanned pairing):
+     * store, verify against /me, keep or roll back.
+     */
+    private function finishConnect(string $url, string $username, string $password, ?string $name = null): void
+    {
         $this->busy = true;
 
         // The password must be in SecureStorage BEFORE the verify call — the
         // HTTP client reads it from there. Everything rolls back on failure.
         $site = Site::create([
-            'name' => parse_url($url, PHP_URL_HOST),
+            'name' => $name ?: parse_url($url, PHP_URL_HOST),
             'base_url' => $url,
-            'username' => trim($this->username),
+            'username' => $username,
         ]);
 
-        app(SiteCredentials::class)->store($site, trim($this->password));
+        app(SiteCredentials::class)->store($site, $password);
 
         try {
             $me = app(ApiClient::class)->me($site);

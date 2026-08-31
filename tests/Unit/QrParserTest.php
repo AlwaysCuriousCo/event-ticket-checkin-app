@@ -24,7 +24,10 @@ it('parses the committed qr-samples fixture lines', function () {
     $lines = array_filter(explode("\n", file_get_contents(dirname(__DIR__, 2).'/docs/api/fixtures/qr-samples.txt')));
 
     foreach ($lines as $line) {
-        expect((new QrParser)->parse($line))->toBeInstanceOf(TicketQr::class);
+        // Ticket URLs plus the one pairing QR the generator appends last.
+        $expected = str_starts_with($line, '{') ? PairingQr::class : TicketQr::class;
+
+        expect((new QrParser)->parse($line))->toBeInstanceOf($expected);
     }
 });
 
