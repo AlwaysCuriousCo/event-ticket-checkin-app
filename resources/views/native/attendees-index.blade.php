@@ -42,6 +42,13 @@
                                       'tint' => '#16a34a',
                                       'full_swipe' => true,
                                   ]]" />
+            @elseif ($row['refunded'])
+                <native:list-item native:key="attendee-{{ $row['id'] }}" ref="attendee-{{ $row['id'] }}"
+                                  headline="{{ $row['name'] }}"
+                                  supporting="{{ $row['ticket'] }} · {{ $row['email'] }}"
+                                  trailingIcon="dollarsign.arrow.circlepath" trailingIconColor="#dc2626"
+                                  a11y-label="{{ $row['name'] }}, refunded"
+                                  @tap="open({{ $row['id'] }})" />
             @else
                 <native:list-item native:key="attendee-{{ $row['id'] }}" ref="attendee-{{ $row['id'] }}"
                                   headline="{{ $row['name'] }}"

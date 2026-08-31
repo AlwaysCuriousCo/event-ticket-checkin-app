@@ -107,6 +107,7 @@ class AttendeesIndex extends NativeComponent
                 'ticket' => (string) $a->ticket_name,
                 'checked_in' => $a->checked_in,
                 'eligible' => $a->isEligibleForCheckin() && ! $a->checked_in,
+                'refunded' => $a->order_status === 'refunded',
             ])
             ->all();
     }

@@ -112,3 +112,16 @@ it('refuses a swipe check-in for a refunded attendee', function () {
 
     expect($refunded->fresh()->checked_in)->toBeFalse();
 });
+
+it('marks refunded attendees with a refund glyph and no swipe action', function () {
+    Attendee::factory()->create([
+        'site_id' => $this->site->id,
+        'wp_event_id' => $this->event->wp_event_id,
+        'holder_name' => 'Refund Ray',
+        'order_status' => 'refunded',
+    ]);
+
+    Native::test(AttendeesIndex::class, params: ['event' => $this->event->id])
+        ->assertSee('Refund Ray, refunded')
+        ->assertDontSee('Refund Ray, checked in');
+});
