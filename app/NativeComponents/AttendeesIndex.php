@@ -4,6 +4,7 @@ namespace App\NativeComponents;
 
 use App\Models\Attendee;
 use App\Models\Event;
+use App\Services\CheckinService;
 use Illuminate\View\View;
 use Native\Mobile\Edge\NativeComponent;
 
@@ -58,6 +59,21 @@ class AttendeesIndex extends NativeComponent
         $this->loadRows();
     }
 
+    /** Swipe action: check an attendee in without leaving the list. */
+    public function swipeCheckin(int $attendeeId): void
+    {
+        $attendee = Attendee::query()
+            ->where('site_id', $this->event->site_id)
+            ->where('wp_event_id', $this->event->wp_event_id)
+            ->find($attendeeId);
+
+        if ($attendee && $attendee->isEligibleForCheckin() && ! $attendee->checked_in) {
+            app(CheckinService::class)->checkin($attendee, $this->event);
+        }
+
+        $this->loadRows();
+    }
+
     public function open(int $attendeeId): void
     {
         $this->navigate("/attendees/{$attendeeId}");
@@ -90,6 +106,7 @@ class AttendeesIndex extends NativeComponent
                 'email' => $a->holder_email,
                 'ticket' => (string) $a->ticket_name,
                 'checked_in' => $a->checked_in,
+                'eligible' => $a->isEligibleForCheckin() && ! $a->checked_in,
             ])
             ->all();
     }

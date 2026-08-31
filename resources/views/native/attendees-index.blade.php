@@ -19,23 +19,21 @@
     <native:scroll-view class="flex-1 w-full">
         <native:column class="w-full px-4 gap-0">
             @forelse ($rows as $row)
-                <native:pressable native:key="attendee-{{ $row['id'] }}" ref="attendee-{{ $row['id'] }}"
-                                  class="w-full flex-row items-center justify-between py-3 border-b border-zinc-100"
-                                  @tap="open({{ $row['id'] }})">
-                    <native:column class="flex-1 gap-1">
-                        <native:text class="text-base font-semibold text-zinc-900">{{ $row['name'] }}</native:text>
-                        <native:text class="text-sm text-zinc-500">{{ $row['ticket'] }} · {{ $row['email'] }}</native:text>
-                    </native:column>
-                    @if ($row['checked_in'])
-                        <native:column class="px-3 py-1 rounded-full bg-green-100">
-                            <native:text class="text-xs font-semibold text-green-700">IN</native:text>
-                        </native:column>
-                    @else
-                        <native:column class="px-3 py-1 rounded-full bg-zinc-100">
-                            <native:text class="text-xs font-semibold text-zinc-500">—</native:text>
-                        </native:column>
-                    @endif
-                </native:pressable>
+                <native:list-item native:key="attendee-{{ $row['id'] }}" ref="attendee-{{ $row['id'] }}"
+                                  headline="{{ $row['name'] }}"
+                                  supporting="{{ $row['ticket'] }} · {{ $row['email'] }}"
+                                  trailingText="{{ $row['checked_in'] ? 'IN ✓' : '' }}"
+                                  trailingTextColor="#15803d"
+                                  @tap="open({{ $row['id'] }})"
+                                  @if ($row['eligible'])
+                                  :leading-actions="[[
+                                      'method' => 'swipeCheckin('.$row['id'].')',
+                                      'label' => 'Check in',
+                                      'icon' => 'checkmark.circle.fill',
+                                      'tint' => '#16a34a',
+                                  ]]"
+                                  @endif
+                />
             @empty
                 <native:column class="w-full items-center p-8">
                     <native:text class="text-base text-zinc-500 text-center">No attendees match.</native:text>

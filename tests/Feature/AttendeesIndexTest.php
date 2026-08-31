@@ -85,3 +85,30 @@ it('opens the attendee detail screen', function () {
         ->followNavigation()
         ->assertScreen(AttendeeDetail::class);
 });
+
+it('checks in an eligible attendee from a swipe action', function () {
+    $eligible = Attendee::factory()->create([
+        'site_id' => $this->site->id,
+        'wp_event_id' => $this->event->wp_event_id,
+        'holder_name' => 'Swipe Me',
+    ]);
+
+    Native::test(AttendeesIndex::class, params: ['event' => $this->event->id])
+        ->call('swipeCheckin', $eligible->id)
+        ->assertSee('IN ✓');
+
+    expect($eligible->fresh()->checked_in)->toBeTrue();
+});
+
+it('refuses a swipe check-in for a refunded attendee', function () {
+    $refunded = Attendee::factory()->create([
+        'site_id' => $this->site->id,
+        'wp_event_id' => $this->event->wp_event_id,
+        'order_status' => 'refunded',
+    ]);
+
+    Native::test(AttendeesIndex::class, params: ['event' => $this->event->id])
+        ->call('swipeCheckin', $refunded->id);
+
+    expect($refunded->fresh()->checked_in)->toBeFalse();
+});
