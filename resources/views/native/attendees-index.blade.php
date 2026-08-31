@@ -27,7 +27,7 @@
                 <native:list-item native:key="attendee-{{ $row['id'] }}" ref="attendee-{{ $row['id'] }}"
                                   headline="{{ $row['name'] }}"
                                   supporting="{{ $row['ticket'] }} · {{ $row['email'] }}"
-                                  trailingIcon="ticket.fill" trailingIconColor="#16a34a"
+                                  trailingIcon="ticket" trailingIconColor="#16a34a"
                                   a11y-label="{{ $row['name'] }}, checked in"
                                   @tap="open({{ $row['id'] }})" />
             @elseif ($row['eligible'])
@@ -40,6 +40,7 @@
                                       'label' => 'Check in',
                                       'icon' => 'checkmark.circle.fill',
                                       'tint' => '#16a34a',
+                                      'full_swipe' => true,
                                   ]]" />
             @else
                 <native:list-item native:key="attendee-{{ $row['id'] }}" ref="attendee-{{ $row['id'] }}"
