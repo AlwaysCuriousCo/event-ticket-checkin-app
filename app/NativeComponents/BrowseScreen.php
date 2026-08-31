@@ -18,8 +18,9 @@ class BrowseScreen extends NativeComponent
 
     public function mount(): void
     {
-        $this->url = (string) $this->param('url', '');
-        $this->title = (string) $this->param('title', 'Browser');
+        // navigate() payload arrives as data(); params are route segments.
+        $this->url = (string) $this->data('url', '');
+        $this->title = (string) $this->data('title', 'Browser');
 
         if (! str_starts_with($this->url, 'http')) {
             $this->back();

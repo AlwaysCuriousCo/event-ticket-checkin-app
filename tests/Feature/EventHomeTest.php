@@ -4,6 +4,7 @@ use App\Models\Attendee;
 use App\Models\CheckinOperation;
 use App\Models\Event;
 use App\Models\Site;
+use App\NativeComponents\BrowseScreen;
 use App\NativeComponents\EventHome;
 use App\Services\Api\ApiClient;
 use App\Services\Api\ApiException;
@@ -114,4 +115,15 @@ it('hides walk-up registration once the event has ended', function () {
 
     Native::test(EventHome::class, ['event' => $this->event->id])
         ->assertDontSee('Register walk-up');
+});
+
+it('opens the in-app browser at the event page when Browser.Open is unavailable', function () {
+    // Fake bridge has no Browser.Open handler → open() returns false.
+    Native::test(EventHome::class, params: ['event' => $this->event->id])
+        ->call('registerWalkUp')
+        ->assertNavigatedTo('/browse')
+        ->followNavigation()
+        ->assertScreen(BrowseScreen::class)
+        ->assertSet('url', rtrim($this->site->base_url, '/').'/?p='.$this->event->wp_event_id)
+        ->assertSet('title', 'Register walk-up');
 });
