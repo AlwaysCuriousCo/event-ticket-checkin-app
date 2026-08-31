@@ -167,6 +167,13 @@ class FixtureApiClient implements ApiClient
         return ['op_id' => $op['op_id'], 'status' => 'ok', 'attendee' => $attendee];
     }
 
+    public function pair(string $siteUrl, string $token, string $deviceName): array
+    {
+        $this->maybeFail();
+
+        return $this->load('pair.json');
+    }
+
     private function maybeFail(): void
     {
         if ($this->failNext) {

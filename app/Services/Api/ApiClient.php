@@ -60,4 +60,15 @@ interface ApiClient
      * @throws ApiException
      */
     public function stats(Site $site, int $wpEventId): array;
+
+    /**
+     * POST /pair — trade a scanned single-use pairing token for an
+     * Application Password. Unauthenticated by design: the token IS the
+     * credential, so this takes a bare site URL, not a Site.
+     *
+     * @return array{site_name: string, site_url: string, username: string, app_password: string}
+     *
+     * @throws ApiException
+     */
+    public function pair(string $siteUrl, string $token, string $deviceName): array;
 }
