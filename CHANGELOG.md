@@ -1,6 +1,19 @@
 # Release Notes
 
-## [Unreleased](https://github.com/laravel/laravel/compare/v13.8.0...13.x)
+## [Unreleased](https://github.com/laravel/laravel/compare/v0.9.0...main)
+
+## [v0.9.0](https://github.com/laravel/laravel/compare/v13.8.0...v0.9.0) - 2026-08-31
+
+### What's Changed
+
+* Implement NativePHP v4 features and update API namespace by [@codearachnid](https://github.com/codearachnid) in https://github.com/codearachnid/event-ticket-scanner-app/pull/1
+* EDGE app build-out: tabs, multi-site, scan cards, group check-in, walk-up registration by [@codearachnid](https://github.com/codearachnid) in https://github.com/codearachnid/event-ticket-scanner-app/pull/2
+
+### New Contributors
+
+* [@codearachnid](https://github.com/codearachnid) made their first contribution in https://github.com/codearachnid/event-ticket-scanner-app/pull/1
+
+**Full Changelog**: https://github.com/codearachnid/event-ticket-scanner-app/commits/v0.9.0
 
 ## [v13.8.0](https://github.com/laravel/laravel/compare/v13.7.0...v13.8.0) - 2026-05-25
 
