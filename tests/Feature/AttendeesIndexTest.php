@@ -95,7 +95,7 @@ it('checks in an eligible attendee from a swipe action', function () {
 
     Native::test(AttendeesIndex::class, params: ['event' => $this->event->id])
         ->call('swipeCheckin', $eligible->id)
-        ->assertSee('IN ✓');
+        ->assertSee('Swipe Me, checked in');
 
     expect($eligible->fresh()->checked_in)->toBeTrue();
 });
