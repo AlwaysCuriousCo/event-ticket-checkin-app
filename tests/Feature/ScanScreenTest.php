@@ -253,3 +253,11 @@ it('scanner start reports failure for decoded array error results', function () 
 
     expect(app(NativeScanner::class)->start('test', 'Scan'))->toBeFalse();
 });
+
+it('refuses to start the scanner on a simulator', function () {
+    // A camera-less simulator scanner "starts", fails, and its dismissal
+    // pops whatever screen is on top — so start() must refuse up front.
+    Native::fakeBridge()->respondTo('Device.GetInfo', ['isVirtual' => true]);
+
+    expect(app(NativeScanner::class)->start('test', 'Scan'))->toBeFalse();
+});
