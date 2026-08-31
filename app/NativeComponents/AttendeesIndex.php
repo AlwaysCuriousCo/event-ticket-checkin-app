@@ -107,7 +107,14 @@ class AttendeesIndex extends NativeComponent
                 'ticket' => (string) $a->ticket_name,
                 'checked_in' => $a->checked_in,
                 'eligible' => $a->isEligibleForCheckin() && ! $a->checked_in,
-                'refunded' => $a->order_status === 'refunded',
+                // Ineligible rows get a status glyph: [SF icon, tint, label].
+                'status_glyph' => match ($a->order_status) {
+                    'refunded' => ['dollarsign.arrow.circlepath', '#dc2626', 'refunded'],
+                    'pending' => ['clock', '#d97706', 'payment pending'],
+                    'cancelled' => ['xmark.circle', '#6b7280', 'cancelled'],
+                    'denied' => ['hand.raised', '#6b7280', 'not going'],
+                    default => null,
+                },
             ])
             ->all();
     }

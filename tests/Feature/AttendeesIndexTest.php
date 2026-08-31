@@ -125,3 +125,19 @@ it('marks refunded attendees with a refund glyph and no swipe action', function 
         ->assertSee('Refund Ray, refunded')
         ->assertDontSee('Refund Ray, checked in');
 });
+
+it('gives each ineligible order status its own glyph label', function () {
+    foreach (['pending' => 'payment pending', 'cancelled' => 'cancelled', 'denied' => 'not going'] as $status => $label) {
+        Attendee::factory()->create([
+            'site_id' => $this->site->id,
+            'wp_event_id' => $this->event->wp_event_id,
+            'holder_name' => ucfirst($status).' Person',
+            'order_status' => $status,
+        ]);
+    }
+
+    Native::test(AttendeesIndex::class, params: ['event' => $this->event->id])
+        ->assertSee('Pending Person, payment pending')
+        ->assertSee('Cancelled Person, cancelled')
+        ->assertSee('Denied Person, not going');
+});
