@@ -89,3 +89,29 @@ it('manual sync-now button pulls fresh state', function () {
         ->tap('sync-btn')
         ->assertSet('total', 50);
 });
+
+it('opens the event page in the browser for a walk-up registration', function () {
+    $bridge = Native::fakeBridge();
+    $bridge->respondTo('Browser.Open', ['status' => 'ok']);
+
+    $this->site->update(['base_url' => 'https://example.test']);
+
+    Native::test(EventHome::class, ['event' => $this->event->id])
+        ->assertSee('Register walk-up')
+        ->call('registerWalkUp');
+
+    $bridge->assertCalled(
+        'Browser.Open',
+        fn (array $params) => ($params['url'] ?? '') === 'https://example.test/?p='.$this->event->wp_event_id,
+    );
+});
+
+it('hides walk-up registration once the event has ended', function () {
+    $this->event->update([
+        'starts_at' => now()->subDays(2)->format('Y-m-d H:i:s'),
+        'ends_at' => now()->subDays(2)->addHours(3)->format('Y-m-d H:i:s'),
+    ]);
+
+    Native::test(EventHome::class, ['event' => $this->event->id])
+        ->assertDontSee('Register walk-up');
+});

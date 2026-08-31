@@ -2,6 +2,7 @@
 
 use App\NativeComponents\AttendeeDetail;
 use App\NativeComponents\AttendeesIndex;
+use App\NativeComponents\BrowseScreen;
 use App\NativeComponents\ConnectSite;
 use App\NativeComponents\EventHome;
 use App\NativeComponents\EventsIndex;
@@ -27,6 +28,7 @@ Route::nativeGroup(AppLayout::class, function () {
     Route::native('/events/{event}/stats', StatsScreen::class);
     Route::native('/attendees/{attendee}', AttendeeDetail::class);
     Route::native('/settings', SettingsScreen::class);
+    Route::native('/browse', BrowseScreen::class);
 
     // Scanner tab: no event in context, the event comes from the ticket.
     Route::native('/scan', ScanScreen::class);

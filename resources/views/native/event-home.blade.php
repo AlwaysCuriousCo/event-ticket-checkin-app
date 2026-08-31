@@ -8,9 +8,10 @@
     @endif
 
     <native:row class="w-full gap-3">
-        <native:column class="flex-1 items-center p-4 rounded-xl bg-zinc-50 border border-zinc-200">
+        <native:column class="flex-1 items-center gap-2 p-4 rounded-xl bg-zinc-50 border border-zinc-200">
             <native:text class="text-3xl font-extrabold text-zinc-900">{{ $checkedIn }}</native:text>
             <native:text class="text-sm text-zinc-500">checked in</native:text>
+            <native:progress-bar :value="$total > 0 ? $checkedIn / $total : 0" color="#16a34a" track-color="#e4e4e7" class="w-full" />
         </native:column>
         <native:column class="flex-1 items-center p-4 rounded-xl bg-zinc-50 border border-zinc-200">
             <native:text class="text-3xl font-extrabold text-zinc-900">{{ $total }}</native:text>
@@ -25,16 +26,25 @@
         <native:text class="text-xl font-bold text-white">Start Scanning</native:text>
     </native:pressable>
 
+    @if ($canRegisterWalkUp)
+        <native:pressable ref="walkup-btn" a11y-label="Register a walk-up attendee"
+                          class="w-full flex-row items-center justify-between p-4 rounded-xl bg-zinc-50 border border-zinc-200"
+                          @tap="registerWalkUp">
+            <native:text class="text-base font-semibold text-zinc-900">Register walk-up</native:text>
+            <native:icon name="arrow.up.right" :size="16" class="text-zinc-400" />
+        </native:pressable>
+    @endif
+
     <native:pressable ref="attendees-btn" class="w-full flex-row items-center justify-between p-4 rounded-xl bg-zinc-50 border border-zinc-200"
                       @tap="openAttendees">
         <native:text class="text-base font-semibold text-zinc-900">Attendees</native:text>
-        <native:icon name="chevron-right" :size="16" class="text-zinc-400" />
+        <native:icon name="chevron.right" :size="16" class="text-zinc-400" />
     </native:pressable>
 
     <native:pressable ref="stats-btn" class="w-full flex-row items-center justify-between p-4 rounded-xl bg-zinc-50 border border-zinc-200"
                       @tap="openStats">
         <native:text class="text-base font-semibold text-zinc-900">Stats</native:text>
-        <native:icon name="chevron-right" :size="16" class="text-zinc-400" />
+        <native:icon name="chevron.right" :size="16" class="text-zinc-400" />
     </native:pressable>
 
     <native:spacer />

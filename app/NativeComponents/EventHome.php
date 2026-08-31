@@ -8,6 +8,8 @@ use App\Services\Api\ApiException;
 use App\Services\SyncEngine;
 use Illuminate\View\View;
 use Native\Mobile\Edge\NativeComponent;
+use Native\Mobile\Facades\Browser;
+use Throwable;
 
 class EventHome extends NativeComponent
 {
@@ -27,6 +29,9 @@ class EventHome extends NativeComponent
 
     public string $error = '';
 
+    /** Walk-ups only make sense while the event can still be attended. */
+    public bool $canRegisterWalkUp = false;
+
     protected ?Event $event = null;
 
     public function mount(): void
@@ -41,6 +46,7 @@ class EventHome extends NativeComponent
 
         $this->title = $this->event->title;
         $this->date = (string) $this->event->starts_at;
+        $this->canRegisterWalkUp = $this->event->allow_walkup && ! $this->event->hasEnded();
 
         // First visit for this event: block on the initial attendee sync so
         // the door list exists before anyone scans (fast against fixtures;
@@ -49,6 +55,32 @@ class EventHome extends NativeComponent
             $this->syncNow();
         } else {
             $this->refreshCounts();
+        }
+    }
+
+    /**
+     * Walk-up sales/RSVPs happen on the site itself — send the organizer to
+     * the event page in the system browser rather than reimplementing ticket
+     * purchase in the app. `?p={id}` avoids needing the permalink in the API.
+     */
+    public function registerWalkUp(): void
+    {
+        if (! $this->event) {
+            return;
+        }
+
+        $url = rtrim($this->event->site->base_url, '/').'/?p='.$this->event->wp_event_id;
+
+        // Browser.Open is only bridged in builds with the premium plugins;
+        // fall back to the in-app webview screen when it isn't there.
+        try {
+            $opened = Browser::open($url);
+        } catch (Throwable) {
+            $opened = false;
+        }
+
+        if (! $opened) {
+            $this->navigate('/browse', ['url' => $url, 'title' => 'Register walk-up']);
         }
     }
 
