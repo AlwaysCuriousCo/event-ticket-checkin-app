@@ -37,6 +37,10 @@ jobs:
           coverage: none
 
       - name: Install Composer dependencies
+        # COMPOSER_AUTH carries the NativePHP plugin license (http-basic for
+        # plugins.nativephp.com) — required to download the premium plugins.
+        env:
+          COMPOSER_AUTH: ${{ secrets.COMPOSER_AUTH }}
         run: composer install --prefer-dist --no-interaction --no-progress
 
       - name: Copy environment file

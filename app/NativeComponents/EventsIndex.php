@@ -63,12 +63,19 @@ class EventsIndex extends NativeComponent
     {
         // Re-resolve: the user may have switched sites on the Profile tab
         // while this screen sat in the tab stack.
+        $previousSiteId = $this->site?->id;
         $this->site = Site::current();
 
         if (! $this->site) {
             $this->replace('/connect');
 
             return;
+        }
+
+        // wp_event_ids collide across sites — never let one site's counts
+        // survive a switch (an offline resume would show them otherwise).
+        if ($this->site->id !== $previousSiteId) {
+            $this->serverCounts = [];
         }
 
         $this->siteName = $this->site->name;

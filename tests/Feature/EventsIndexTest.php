@@ -193,3 +193,21 @@ it('keeps server counts while searching', function () {
         ->set('query', '')
         ->assertSee('14 / 50 checked in');
 });
+
+it('drops the previous site counts when the active site changes', function () {
+    Site::factory()->create(['name' => 'First Site', 'is_active' => true]);
+    $second = Site::factory()->create(['name' => 'Second Site', 'base_url' => 'https://second.test', 'is_active' => false]);
+
+    // Same wp_event_id as the fixture event on the first site — WordPress
+    // post IDs collide across sites, so counts must never carry over.
+    Event::factory()->create(['site_id' => $second->id, 'wp_event_id' => 501, 'title' => 'Second Site Event']);
+
+    $screen = Native::test(EventsIndex::class)->assertSee('14 / 50 checked in');
+
+    $second->activate();
+    app(ApiClient::class)->failNextWith(new ApiException('offline'));
+
+    $screen->call('onResume')
+        ->assertSee('Second Site Event')
+        ->assertDontSee('14 / 50 checked in');
+});
