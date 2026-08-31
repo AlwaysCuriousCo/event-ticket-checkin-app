@@ -2,6 +2,7 @@
 
 namespace App\NativeComponents;
 
+use App\Models\Attendee;
 use App\Models\Event;
 use App\Models\Site;
 use App\Services\CheckinService;
@@ -55,6 +56,17 @@ class ScanScreen extends NativeComponent
     /** No event pinned: the event comes from whatever ticket is scanned. */
     public bool $anyEvent = false;
 
+    /** Local id of the scanned attendee — View details + group actions. */
+    public int $attendeeId = 0;
+
+    /**
+     * Linked tickets: others on the same order. Rows:
+     * {id, name, ticket, checked_in, eligible}.
+     *
+     * @var array<int, array{id: int, name: string, ticket: string, checked_in: bool, eligible: bool}>
+     */
+    public array $groupMates = [];
+
     protected ?Event $event = null;
 
     protected ?Site $site = null;
@@ -62,7 +74,8 @@ class ScanScreen extends NativeComponent
     /** @var array<string, float> raw code → last-seen unix time (duplicate-read debounce) */
     protected array $recentCodes = [];
 
-    protected float $resultShownAt = 0.0;
+    /** Public so tests can rewind the clock without a real sleep. */
+    public float $resultShownAt = 0.0;
 
     public function mount(): void
     {
@@ -137,6 +150,8 @@ class ScanScreen extends NativeComponent
         $this->resultShownAt = microtime(true);
         $this->attendeeName = $result->attendee->holder_name ?? '';
         $this->ticketName = $result->attendee->ticket_name ?? '';
+        $this->attendeeId = $result->attendee->id ?? 0;
+        $this->loadGroup($result->attendee, $result->outcome);
         $this->reasonLabel = $result->reason->label();
         // In any-event mode staff can't see which door they're at from the
         // screen alone, so name the event the ticket resolved to.
@@ -157,14 +172,89 @@ class ScanScreen extends NativeComponent
         $this->anyEvent ? $this->replace('/events') : $this->back();
     }
 
-    /** GREEN auto-returns to scanning; ticks are cheap no-ops otherwise. */
+    /**
+     * GREEN auto-returns to scanning — unless groupmates still need
+     * checking in, in which case the card stays up for group check-in.
+     * Ticks are cheap no-ops otherwise.
+     */
     #[Poll(500)]
     public function tick(): void
     {
         if ($this->phase === 'green'
+            && ! $this->hasEligibleMates()
             && (microtime(true) - $this->resultShownAt) >= self::GREEN_DISMISS_SECONDS) {
             $this->dismiss();
         }
+    }
+
+    /** Check in one linked ticket from the result card. */
+    public function checkinMate(int $attendeeId): void
+    {
+        $mate = Attendee::find($attendeeId);
+        $event = $mate ? Event::query()
+            ->where('site_id', $mate->site_id)
+            ->where('wp_event_id', $mate->wp_event_id)
+            ->first() : null;
+
+        if (! $mate || ! $event || ! $mate->isEligibleForCheckin() || $mate->checked_in) {
+            return;
+        }
+
+        app(CheckinService::class)->checkin($mate, $event);
+
+        foreach ($this->groupMates as &$row) {
+            if ($row['id'] === $mate->id) {
+                $row['checked_in'] = true;
+                $row['eligible'] = false;
+            }
+        }
+        unset($row);
+    }
+
+    /** Check in every eligible linked ticket at once. */
+    public function checkinGroup(): void
+    {
+        foreach ($this->groupMates as $row) {
+            if ($row['eligible']) {
+                $this->checkinMate($row['id']);
+            }
+        }
+    }
+
+    /** Open the scanned attendee's detail screen. */
+    public function viewDetails(): void
+    {
+        if ($this->attendeeId > 0) {
+            $this->navigate("/attendees/{$this->attendeeId}");
+        }
+    }
+
+    private function hasEligibleMates(): bool
+    {
+        return (bool) array_filter($this->groupMates, fn (array $row) => $row['eligible']);
+    }
+
+    /**
+     * Linked tickets for the result card. Only GREEN/AMBER load a group —
+     * a RED scan should keep staff focused on the rejection.
+     */
+    private function loadGroup(?Attendee $attendee, ScanOutcome $outcome): void
+    {
+        $this->groupMates = [];
+
+        if (! $attendee || $outcome === ScanOutcome::Red) {
+            return;
+        }
+
+        $this->groupMates = $attendee->groupMates()
+            ->map(fn (Attendee $mate) => [
+                'id' => $mate->id,
+                'name' => $mate->holder_name,
+                'ticket' => $mate->ticket_name ?? '',
+                'checked_in' => (bool) $mate->checked_in,
+                'eligible' => $mate->isEligibleForCheckin() && ! $mate->checked_in,
+            ])
+            ->all();
     }
 
     public function dismiss(): void

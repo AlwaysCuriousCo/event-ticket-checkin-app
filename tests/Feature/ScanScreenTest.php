@@ -59,7 +59,7 @@ it('shows GREEN and checks in a valid attendee, queueing exactly one operation',
         ->emitNative(CodeScanned::class, ['data' => ticketQrUrl($attendee), 'format' => 'qr'])
         ->assertSet('phase', 'green')
         ->assertSee('Ada Lovelace')
-        ->assertSee('Checked in ✓');
+        ->assertSee('Valid Ticket');
 
     // NB: the sync queue driver in tests runs the debounced SyncEventJob
     // immediately, so the operation may already be marked synced — assert
@@ -186,4 +186,41 @@ it('leaves the screen when the native scanner is cancelled', function () {
     scanScreen($this->event)
         ->emitNative(ScannerCancelled::class)
         ->assertWentBack();
+});
+
+it('lists linked tickets from the same order and checks them in as a group', function () {
+    $scanned = doorAttendee($this->site, $this->event, ['wp_order_id' => 7001, 'holder_name' => 'Tom Haverford']);
+    $mate = doorAttendee($this->site, $this->event, ['wp_order_id' => 7001, 'holder_name' => 'Ben Wyatt']);
+    $refunded = doorAttendee($this->site, $this->event, ['wp_order_id' => 7001, 'holder_name' => 'Jean-Ralphio', 'order_status' => 'refunded']);
+    doorAttendee($this->site, $this->event, ['wp_order_id' => 7002, 'holder_name' => 'April Ludgate']); // other order
+
+    $screen = scanScreen($this->event)
+        ->emitNative(CodeScanned::class, ['data' => ticketQrUrl($scanned), 'format' => 'qr'])
+        ->assertSet('phase', 'green')
+        ->assertSee('GROUP OF 3')
+        ->assertSee('Ben Wyatt')
+        ->assertSee('Jean-Ralphio')
+        ->assertDontSee('April Ludgate');
+
+    $screen->call('checkinGroup');
+
+    expect($mate->fresh()->checked_in)->toBeTrue()
+        ->and($refunded->fresh()->checked_in)->toBeFalse()
+        ->and(CheckinOperation::count())->toBe(2); // scanned + eligible mate only
+});
+
+it('keeps GREEN on screen while linked tickets remain, then auto-dismisses when done', function () {
+    $scanned = doorAttendee($this->site, $this->event, ['wp_order_id' => 7003]);
+    $mate = doorAttendee($this->site, $this->event, ['wp_order_id' => 7003]);
+
+    $screen = scanScreen($this->event)
+        ->emitNative(CodeScanned::class, ['data' => ticketQrUrl($scanned), 'format' => 'qr'])
+        ->assertSet('phase', 'green');
+
+    $screen->set('resultShownAt', microtime(true) - 10)
+        ->call('tick')->assertSet('phase', 'green'); // eligible mate holds the card
+
+    $screen->call('checkinMate', $mate->id)
+        ->set('resultShownAt', microtime(true) - 10)
+        ->call('tick')->assertSet('phase', 'scanning');
 });
