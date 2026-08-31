@@ -148,6 +148,7 @@ class SyncEngine
             'holder_name' => $row['holder_name'],
             'holder_email' => $row['holder_email'],
             'security_code' => $row['security_code'],
+            'wp_order_id' => $row['order_id'] ?? null,
             'order_status' => $row['order_status'],
             'remote_updated_at' => $row['updated_at'],
         ];

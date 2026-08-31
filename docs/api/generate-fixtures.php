@@ -75,6 +75,9 @@ foreach ($ticketTypes as $ticketId => $type) {
             'holder_name' => $name,
             'holder_email' => $email,
             'security_code' => securityCode($attendeeId),
+            // Orders group 4 consecutive TC/Woo attendees (group check-in);
+            // RSVP has no order concept.
+            'order_id' => $type['provider'] === 'rsvp' ? null : 8000 + intdiv($i, 4),
             'order_status' => $orderStatus,
             'checked_in' => $checkedIn,
             'checked_in_at' => $checkedInAt,
@@ -110,6 +113,7 @@ $fixtures = [
     ],
     'events.json' => [
         'events' => [[
+            'allow_walkup' => true,
             'id' => EVENT_ID,
             'title' => 'Fixture Fest 2026',
             'start_date' => '2026-09-12T18:00:00',
@@ -180,6 +184,13 @@ $fixtures = [
         ],
         'server_time' => '2026-09-12T18:03:12Z',
     ],
+    'pair.json' => [
+        'site_name' => 'Example Event Site',
+        'site_url' => SITE_URL,
+        'username' => 'doorstaff',
+        'app_password' => 'abcd efgh ijkl mnop abcd efgh',
+    ],
+
     'stats.json' => [
         'event_id' => EVENT_ID,
         'total' => count($attendees),
@@ -212,5 +223,14 @@ foreach ([9001, 9002, 9004] as $id) {
         'path' => '/wp-json/tribe/tickets/v1/qr',
     ]);
 }
+// Pairing QR (wp-admin → Tickets → Scanner App).
+$qrSamples[] = json_encode([
+    'v' => 1,
+    'type' => 'event-ticket-scanner-pair',
+    'url' => SITE_URL,
+    'user' => 'doorstaff',
+    'token' => str_repeat('a1b2c3d4', 5),
+], JSON_UNESCAPED_SLASHES);
+
 file_put_contents($dir.'/qr-samples.txt', implode("\n", $qrSamples)."\n");
 echo "wrote fixtures/qr-samples.txt\n";

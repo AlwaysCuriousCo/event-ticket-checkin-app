@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -16,7 +17,7 @@ class Attendee extends Model
 
     protected $fillable = [
         'site_id', 'wp_attendee_id', 'wp_event_id', 'wp_ticket_id', 'ticket_name',
-        'provider', 'holder_name', 'holder_email', 'security_code', 'order_status',
+        'wp_order_id', 'provider', 'holder_name', 'holder_email', 'security_code', 'order_status',
         'checked_in', 'checked_in_at', 'checked_in_by', 'checked_in_source',
         'remote_updated_at',
     ];
@@ -29,6 +30,26 @@ class Attendee extends Model
     public function site(): BelongsTo
     {
         return $this->belongsTo(Site::class);
+    }
+
+    /**
+     * Other attendees bought on the same order (the "linked tickets" group).
+     * Empty for RSVP and single-ticket orders.
+     *
+     * @return Collection<int, self>
+     */
+    public function groupMates(): Collection
+    {
+        if (! $this->wp_order_id) {
+            return new Collection;
+        }
+
+        return static::query()
+            ->where('site_id', $this->site_id)
+            ->where('wp_order_id', $this->wp_order_id)
+            ->whereKeyNot($this->id)
+            ->orderBy('holder_name')
+            ->get();
     }
 
     public function isEligibleForCheckin(): bool

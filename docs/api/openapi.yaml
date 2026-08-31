@@ -439,6 +439,7 @@ components:
     Event:
       type: object
       required: [id, title, start_date, end_date, timezone, attendee_count, checked_in_count]
+      # allow_walkup is optional for older plugin versions; absent means allowed.
       properties:
         id: { type: integer, description: WordPress post ID of the event. }
         title: { type: string }
@@ -446,6 +447,10 @@ components:
           type: string
           description: Event-local wall time, ISO-8601 without offset (interpret in `timezone`).
         end_date: { type: string }
+        allow_walkup:
+          type: boolean
+          default: true
+          description: Whether the app may offer walk-up registration for this event (wp-admin checkbox on the event).
         timezone: { type: string, description: IANA timezone of the event. }
         venue: { type: [string, 'null'] }
         attendee_count: { type: integer }
@@ -466,6 +471,13 @@ components:
         security_code:
           type: string
           description: Per-attendee security code; must match the `security_code` in the scanned QR.
+        order_id:
+          type: [integer, 'null']
+          description: >-
+            WordPress order post ID shared by attendees purchased together
+            (Tickets Commerce / WooCommerce). Null for providers with no
+            order concept (RSVP). Attendees sharing an order_id form a
+            group for group check-in.
         order_status:
           type: string
           enum: [completed, pending, refunded, cancelled, denied]
