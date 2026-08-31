@@ -27,6 +27,9 @@ class EventHome extends NativeComponent
 
     public string $error = '';
 
+    /** Walk-ups only make sense while the event can still be attended. */
+    public bool $canRegisterWalkUp = false;
+
     protected ?Event $event = null;
 
     public function mount(): void
@@ -41,6 +44,7 @@ class EventHome extends NativeComponent
 
         $this->title = $this->event->title;
         $this->date = (string) $this->event->starts_at;
+        $this->canRegisterWalkUp = $this->event->allow_walkup && ! $this->event->hasEnded();
 
         // First visit for this event: block on the initial attendee sync so
         // the door list exists before anyone scans (fast against fixtures;
@@ -49,6 +53,17 @@ class EventHome extends NativeComponent
             $this->syncNow();
         } else {
             $this->refreshCounts();
+        }
+    }
+
+    /**
+     * Cash/comp walk-ups register in-app via the plugin API; the walk-up
+     * screen hands card buyers to the site's own checkout.
+     */
+    public function registerWalkUp(): void
+    {
+        if ($this->event) {
+            $this->navigate("/events/{$this->event->id}/walkup");
         }
     }
 

@@ -68,6 +68,15 @@ class QrParser
             return null;
         }
 
-        return new PairingQr($url);
+        // v2 (companion plugin): a single-use token the app trades at /pair.
+        // Legacy ET+ QRs have no token — only the URL is usable.
+        $token = $data['token'] ?? null;
+        $user = $data['user'] ?? null;
+
+        return new PairingQr(
+            $url,
+            is_string($user) && $user !== '' ? $user : null,
+            is_string($token) && strlen($token) >= 20 ? $token : null,
+        );
     }
 }

@@ -5,6 +5,7 @@ use App\Models\CheckinOperation;
 use App\Models\Event;
 use App\Models\Site;
 use App\NativeComponents\EventHome;
+use App\NativeComponents\WalkUpScreen;
 use App\Services\Api\ApiClient;
 use App\Services\Api\ApiException;
 use Illuminate\Support\Str;
@@ -88,4 +89,24 @@ it('manual sync-now button pulls fresh state', function () {
         ->assertSet('total', 0)
         ->tap('sync-btn')
         ->assertSet('total', 50);
+});
+
+it('opens the walk-up registration screen', function () {
+    Native::test(EventHome::class, ['event' => $this->event->id])
+        ->assertSee('Register walk-up')
+        ->call('registerWalkUp')
+        ->assertNavigatedTo("/events/{$this->event->id}/walkup")
+        ->followNavigation()
+        ->assertScreen(WalkUpScreen::class)
+        ->assertSet('eventTitle', $this->event->title);
+});
+
+it('hides walk-up registration once the event has ended', function () {
+    $this->event->update([
+        'starts_at' => now()->subDays(2)->format('Y-m-d H:i:s'),
+        'ends_at' => now()->subDays(2)->addHours(3)->format('Y-m-d H:i:s'),
+    ]);
+
+    Native::test(EventHome::class, ['event' => $this->event->id])
+        ->assertDontSee('Register walk-up');
 });

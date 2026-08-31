@@ -21,7 +21,9 @@ class HttpApiClient implements ApiClient
 
     public function events(Site $site, int $page = 1): array
     {
-        return $this->get($site, '/events', ['page' => $page]);
+        // upcoming=0: the server hides past events by default, but the app
+        // needs them for the "show past events" list and splits them itself.
+        return $this->get($site, '/events', ['page' => $page, 'upcoming' => 0]);
     }
 
     public function attendees(Site $site, int $wpEventId, ?string $updatedSince = null, int $page = 1, int $perPage = 100): array
@@ -52,10 +54,40 @@ class HttpApiClient implements ApiClient
         return $this->get($site, "/events/{$wpEventId}/stats");
     }
 
+    public function tickets(Site $site, int $wpEventId): array
+    {
+        return $this->get($site, "/events/{$wpEventId}/tickets");
+    }
+
+    public function registerWalkUp(Site $site, int $wpEventId, array $payload): array
+    {
+        try {
+            $response = $this->request($site)->post($site->apiBase()."/events/{$wpEventId}/register", $payload);
+        } catch (ConnectionException $e) {
+            throw new ApiException($e->getMessage());
+        }
+
+        return $this->decode($response);
+    }
+
     private function get(Site $site, string $path, array $query = []): array
     {
         try {
             $response = $this->request($site)->get($site->apiBase().$path, $query);
+        } catch (ConnectionException $e) {
+            throw new ApiException($e->getMessage());
+        }
+
+        return $this->decode($response);
+    }
+
+    public function pair(string $siteUrl, string $token, string $deviceName): array
+    {
+        try {
+            $response = $this->baseRequest()->post(Site::apiBaseFor($siteUrl).'/pair', [
+                'token' => $token,
+                'device_name' => $deviceName,
+            ]);
         } catch (ConnectionException $e) {
             throw new ApiException($e->getMessage());
         }
@@ -71,8 +103,13 @@ class HttpApiClient implements ApiClient
             throw new ApiException('No stored credentials for this site.', 401);
         }
 
-        $request = Http::withBasicAuth($site->username, $password)
-            ->acceptJson()
+        return $this->baseRequest()->withBasicAuth($site->username, $password);
+    }
+
+    /** Shared transport config; /pair is the one call with no credentials. */
+    private function baseRequest(): PendingRequest
+    {
+        $request = Http::acceptJson()
             ->timeout(20)
             ->connectTimeout(8);
 

@@ -60,4 +60,35 @@ interface ApiClient
      * @throws ApiException
      */
     public function stats(Site $site, int $wpEventId): array;
+
+    /**
+     * GET /events/{id}/tickets — sellable tickets for walk-up registration.
+     *
+     * @return array{tickets: array<int, array{id: int, name: string, provider: string, price: float|int}>}
+     *
+     * @throws ApiException
+     */
+    public function tickets(Site $site, int $wpEventId): array;
+
+    /**
+     * POST /events/{id}/register — cash/comp walk-up registration. Card
+     * payments go through the site's own checkout, never this call.
+     *
+     * @param  array{ticket_id: int, name: string, email?: string, payment?: string, check_in?: bool, device_id?: string}  $payload
+     * @return array{attendee: array, server_time: string}
+     *
+     * @throws ApiException
+     */
+    public function registerWalkUp(Site $site, int $wpEventId, array $payload): array;
+
+    /**
+     * POST /pair — trade a scanned single-use pairing token for an
+     * Application Password. Unauthenticated by design: the token IS the
+     * credential, so this takes a bare site URL, not a Site.
+     *
+     * @return array{site_name: string, site_url: string, username: string, app_password: string}
+     *
+     * @throws ApiException
+     */
+    public function pair(string $siteUrl, string $token, string $deviceName): array;
 }

@@ -5,6 +5,7 @@ use App\Models\CheckinOperation;
 use App\Models\Event;
 use App\Models\Site;
 use App\NativeComponents\ScanScreen;
+use App\Services\NativeScanner;
 use Native\Mobile\Events\Scanner\CodeScanned;
 use Native\Mobile\Events\Scanner\ScannerCancelled;
 use Native\Mobile\Testing\Native;
@@ -59,7 +60,7 @@ it('shows GREEN and checks in a valid attendee, queueing exactly one operation',
         ->emitNative(CodeScanned::class, ['data' => ticketQrUrl($attendee), 'format' => 'qr'])
         ->assertSet('phase', 'green')
         ->assertSee('Ada Lovelace')
-        ->assertSee('Checked in ✓');
+        ->assertSee('Valid Ticket');
 
     // NB: the sync queue driver in tests runs the debounced SyncEventJob
     // immediately, so the operation may already be marked synced — assert
@@ -186,4 +187,77 @@ it('leaves the screen when the native scanner is cancelled', function () {
     scanScreen($this->event)
         ->emitNative(ScannerCancelled::class)
         ->assertWentBack();
+});
+
+it('lists linked tickets from the same order and checks them in as a group', function () {
+    $scanned = doorAttendee($this->site, $this->event, ['wp_order_id' => 7001, 'holder_name' => 'Tom Haverford']);
+    $mate = doorAttendee($this->site, $this->event, ['wp_order_id' => 7001, 'holder_name' => 'Ben Wyatt']);
+    $refunded = doorAttendee($this->site, $this->event, ['wp_order_id' => 7001, 'holder_name' => 'Jean-Ralphio', 'order_status' => 'refunded']);
+    doorAttendee($this->site, $this->event, ['wp_order_id' => 7002, 'holder_name' => 'April Ludgate']); // other order
+
+    $screen = scanScreen($this->event)
+        ->emitNative(CodeScanned::class, ['data' => ticketQrUrl($scanned), 'format' => 'qr'])
+        ->assertSet('phase', 'green')
+        ->assertSee('GROUP OF 3')
+        ->assertSee('Ben Wyatt')
+        ->assertSee('Jean-Ralphio')
+        ->assertDontSee('April Ludgate');
+
+    $screen->call('checkinGroup');
+
+    expect($mate->fresh()->checked_in)->toBeTrue()
+        ->and($refunded->fresh()->checked_in)->toBeFalse()
+        ->and(CheckinOperation::count())->toBe(2); // scanned + eligible mate only
+});
+
+it('keeps GREEN on screen while linked tickets remain, then auto-dismisses when done', function () {
+    $scanned = doorAttendee($this->site, $this->event, ['wp_order_id' => 7003]);
+    $mate = doorAttendee($this->site, $this->event, ['wp_order_id' => 7003]);
+
+    $screen = scanScreen($this->event)
+        ->emitNative(CodeScanned::class, ['data' => ticketQrUrl($scanned), 'format' => 'qr'])
+        ->assertSet('phase', 'green');
+
+    $screen->set('resultShownAt', microtime(true) - 10)
+        ->call('tick')->assertSet('phase', 'green'); // eligible mate holds the card
+
+    $screen->call('checkinMate', $mate->id)
+        ->set('resultShownAt', microtime(true) - 10)
+        ->call('tick')->assertSet('phase', 'scanning');
+});
+
+it('scan tab re-reads the active site on resume after a switch', function () {
+    Site::factory()->create(['name' => 'First Site', 'is_active' => true]);
+    $second = Site::factory()->create(['name' => 'Second Site', 'base_url' => 'https://second.test', 'is_active' => false]);
+
+    $screen = Native::test(ScanScreen::class)
+        ->assertSet('contextLabel', 'All events · First Site');
+
+    $second->activate();
+
+    $screen->call('onResume')
+        ->assertSet('contextLabel', 'All events · Second Site');
+});
+
+it('group mates never cross event boundaries', function () {
+    $site = Site::factory()->create();
+    $a = Attendee::factory()->create(['site_id' => $site->id, 'wp_event_id' => 501, 'wp_order_id' => 8000]);
+    Attendee::factory()->create(['site_id' => $site->id, 'wp_event_id' => 502, 'wp_order_id' => 8000]);
+    $sameEvent = Attendee::factory()->create(['site_id' => $site->id, 'wp_event_id' => 501, 'wp_order_id' => 8000]);
+
+    expect($a->groupMates()->pluck('id')->all())->toBe([$sameEvent->id]);
+});
+
+it('scanner start reports failure for decoded array error results', function () {
+    Native::fakeBridge()->respondTo('Scanner.Scan', ['status' => 'error', 'code' => 'NO_DEVICE']);
+
+    expect(app(NativeScanner::class)->start('test', 'Scan'))->toBeFalse();
+});
+
+it('refuses to start the scanner on a simulator', function () {
+    // A camera-less simulator scanner "starts", fails, and its dismissal
+    // pops whatever screen is on top — so start() must refuse up front.
+    Native::fakeBridge()->respondTo('Device.GetInfo', ['isVirtual' => true]);
+
+    expect(app(NativeScanner::class)->start('test', 'Scan'))->toBeFalse();
 });

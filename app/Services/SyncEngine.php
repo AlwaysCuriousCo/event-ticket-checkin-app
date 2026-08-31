@@ -137,8 +137,11 @@ class SyncEngine
      * Upsert one attendee from server data. Server state wins EXCEPT when this
      * device has an unsynced operation for the attendee — then the local
      * check-in fields are authoritative until that operation is pushed.
+     *
+     * Public so walk-up registration can upsert the attendee it just
+     * created server-side without waiting for the next delta pull.
      */
-    private function applyServerAttendee(Site $site, array $row): bool
+    public function applyServerAttendee(Site $site, array $row): bool
     {
         $serverFields = [
             'wp_event_id' => $row['event_id'],
@@ -148,6 +151,7 @@ class SyncEngine
             'holder_name' => $row['holder_name'],
             'holder_email' => $row['holder_email'],
             'security_code' => $row['security_code'],
+            'wp_order_id' => $row['order_id'] ?? null,
             'order_status' => $row['order_status'],
             'remote_updated_at' => $row['updated_at'],
         ];

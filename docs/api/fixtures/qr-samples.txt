@@ -1,3 +1,4 @@
 https://example.test/?event_qr_code=1&ticket_id=9001&event_id=501&security_code=6230f7d1&path=%2Fwp-json%2Ftribe%2Ftickets%2Fv1%2Fqr
 https://example.test/?event_qr_code=1&ticket_id=9002&event_id=501&security_code=64a70c28&path=%2Fwp-json%2Ftribe%2Ftickets%2Fv1%2Fqr
 https://example.test/?event_qr_code=1&ticket_id=9004&event_id=501&security_code=f4edb9c9&path=%2Fwp-json%2Ftribe%2Ftickets%2Fv1%2Fqr
+{"v":1,"type":"event-ticket-scanner-pair","url":"https://example.test","user":"doorstaff","token":"a1b2c3d4a1b2c3d4a1b2c3d4a1b2c3d4a1b2c3d4"}

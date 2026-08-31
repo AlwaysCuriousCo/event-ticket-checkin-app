@@ -346,6 +346,87 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+  /events/{event_id}/tickets:
+    get:
+      operationId: getTickets
+      tags: [events]
+      summary: Sellable tickets for an event (walk-up registration)
+      parameters:
+        - $ref: '#/components/parameters/event_id'
+      responses:
+        '200':
+          description: Tickets across providers (Tickets Commerce + RSVP).
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [tickets]
+                properties:
+                  tickets:
+                    type: array
+                    items: { $ref: '#/components/schemas/Ticket' }
+              example:
+                tickets:
+                  - { id: 701, name: General Admission, provider: tickets-commerce, price: 25 }
+                  - { id: 702, name: VIP, provider: tickets-commerce, price: 60 }
+                  - { id: 703, name: RSVP, provider: rsvp, price: 0 }
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /events/{event_id}/register:
+    post:
+      operationId: registerWalkUp
+      tags: [events]
+      summary: Register a cash/comp walk-up attendee at the door
+      description: >
+        Creates a real provider attendee (and, for Tickets Commerce, a
+        completed backing order) for payment taken at the door. Card
+        payments never use this endpoint — the app sends those buyers to
+        the site's own checkout so the configured gateway processes them.
+        Refused with `event_ticket_scanner_walkup_disabled` (403) when the
+        event's walk-up toggle is off.
+      parameters:
+        - $ref: '#/components/parameters/event_id'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RegisterRequest' }
+            example:
+              ticket_id: 701
+              name: Pat Walkup
+              email: pat@example.test
+              payment: cash
+              check_in: true
+              device_id: door-ipad-1
+      responses:
+        '200':
+          description: The created attendee, contract-shaped (appears in delta sync too).
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [attendee, server_time]
+                properties:
+                  attendee: { $ref: '#/components/schemas/Attendee' }
+                  server_time: { type: string, format: date-time }
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          description: Ticket does not belong to this event.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+              example: { code: event_ticket_scanner_ticket_mismatch, message: Ticket does not belong to this event., data: { status: 422 } }
 components:
   securitySchemes:
     applicationPassword:
@@ -439,6 +520,7 @@ components:
     Event:
       type: object
       required: [id, title, start_date, end_date, timezone, attendee_count, checked_in_count]
+      # allow_walkup is optional for older plugin versions; absent means allowed.
       properties:
         id: { type: integer, description: WordPress post ID of the event. }
         title: { type: string }
@@ -446,10 +528,32 @@ components:
           type: string
           description: Event-local wall time, ISO-8601 without offset (interpret in `timezone`).
         end_date: { type: string }
+        allow_walkup:
+          type: boolean
+          default: true
+          description: Whether the app may offer walk-up registration for this event (wp-admin checkbox on the event).
         timezone: { type: string, description: IANA timezone of the event. }
         venue: { type: [string, 'null'] }
         attendee_count: { type: integer }
         checked_in_count: { type: integer }
+    Ticket:
+      type: object
+      required: [id, name, provider, price]
+      properties:
+        id: { type: integer, description: WordPress post ID of the ticket product/type. }
+        name: { type: string }
+        provider: { type: string, enum: [tickets-commerce, rsvp] }
+        price: { type: number }
+    RegisterRequest:
+      type: object
+      required: [ticket_id, name]
+      properties:
+        ticket_id: { type: integer }
+        name: { type: string }
+        email: { type: string, default: '' }
+        payment: { type: string, enum: [cash, comp], default: cash }
+        check_in: { type: boolean, default: true }
+        device_id: { type: string, default: '' }
     Attendee:
       type: object
       required: [id, event_id, ticket_id, ticket_name, provider, holder_name, holder_email, security_code, order_status, checked_in, checked_in_at, checked_in_by, updated_at]
@@ -466,6 +570,13 @@ components:
         security_code:
           type: string
           description: Per-attendee security code; must match the `security_code` in the scanned QR.
+        order_id:
+          type: [integer, 'null']
+          description: >-
+            WordPress order post ID shared by attendees purchased together
+            (Tickets Commerce / WooCommerce). Null for providers with no
+            order concept (RSVP). Attendees sharing an order_id form a
+            group for group check-in.
         order_status:
           type: string
           enum: [completed, pending, refunded, cancelled, denied]

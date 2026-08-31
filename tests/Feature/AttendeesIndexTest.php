@@ -85,3 +85,59 @@ it('opens the attendee detail screen', function () {
         ->followNavigation()
         ->assertScreen(AttendeeDetail::class);
 });
+
+it('checks in an eligible attendee from a swipe action', function () {
+    $eligible = Attendee::factory()->create([
+        'site_id' => $this->site->id,
+        'wp_event_id' => $this->event->wp_event_id,
+        'holder_name' => 'Swipe Me',
+    ]);
+
+    Native::test(AttendeesIndex::class, params: ['event' => $this->event->id])
+        ->call('swipeCheckin', $eligible->id)
+        ->assertSee('Swipe Me, checked in');
+
+    expect($eligible->fresh()->checked_in)->toBeTrue();
+});
+
+it('refuses a swipe check-in for a refunded attendee', function () {
+    $refunded = Attendee::factory()->create([
+        'site_id' => $this->site->id,
+        'wp_event_id' => $this->event->wp_event_id,
+        'order_status' => 'refunded',
+    ]);
+
+    Native::test(AttendeesIndex::class, params: ['event' => $this->event->id])
+        ->call('swipeCheckin', $refunded->id);
+
+    expect($refunded->fresh()->checked_in)->toBeFalse();
+});
+
+it('marks refunded attendees with a refund glyph and no swipe action', function () {
+    Attendee::factory()->create([
+        'site_id' => $this->site->id,
+        'wp_event_id' => $this->event->wp_event_id,
+        'holder_name' => 'Refund Ray',
+        'order_status' => 'refunded',
+    ]);
+
+    Native::test(AttendeesIndex::class, params: ['event' => $this->event->id])
+        ->assertSee('Refund Ray, refunded')
+        ->assertDontSee('Refund Ray, checked in');
+});
+
+it('gives each ineligible order status its own glyph label', function () {
+    foreach (['pending' => 'payment pending', 'cancelled' => 'cancelled', 'denied' => 'not going'] as $status => $label) {
+        Attendee::factory()->create([
+            'site_id' => $this->site->id,
+            'wp_event_id' => $this->event->wp_event_id,
+            'holder_name' => ucfirst($status).' Person',
+            'order_status' => $status,
+        ]);
+    }
+
+    Native::test(AttendeesIndex::class, params: ['event' => $this->event->id])
+        ->assertSee('Pending Person, payment pending')
+        ->assertSee('Cancelled Person, cancelled')
+        ->assertSee('Denied Person, not going');
+});

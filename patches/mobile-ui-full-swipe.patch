@@ -1,0 +1,29 @@
+--- a/src/Elements/ListItem.php	2026-08-31 09:20:38
++++ b/src/Elements/ListItem.php	2026-08-31 09:20:38
+@@ -635,6 +635,7 @@
+                 'icon_variant' => $resolved['variant'] ?? '',
+                 'tint' => $tint === '' ? '' : $this->resolveColorValue($tint),
+                 'role' => $action['role'] ?? '',
++                'full_swipe' => ! empty($action['full_swipe']),
+             ];
+         }
+ 
+--- a/resources/ios/NativeUIListRenderer.swift	2026-08-31 09:20:38
++++ b/resources/ios/NativeUIListRenderer.swift	2026-08-31 09:20:38
+@@ -7,6 +7,7 @@
+     let icon: String
+     let tint: String
+     let role: String
++    let full_swipe: Bool?
+ 
+     var id: Int { cb }
+ }
+@@ -118,7 +119,7 @@
+             // divider under the final row.
+             .listRowSeparator(separator && !isLastInSection ? .visible : .hidden, edges: .bottom)
+             .listRowSeparator(.hidden, edges: .top)
+-            .swipeActions(edge: .leading, allowsFullSwipe: false) {
++            .swipeActions(edge: .leading, allowsFullSwipe: leading.contains(where: { $0.full_swipe == true })) {
+                 ForEach(leading) { action in
+                     actionButton(spec: action, nodeId: child.id)
+                 }

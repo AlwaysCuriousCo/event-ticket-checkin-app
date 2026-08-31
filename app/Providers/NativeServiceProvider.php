@@ -3,6 +3,8 @@
 namespace App\Providers;
 
 use Illuminate\Support\ServiceProvider;
+use Native\Mobile\Providers\ScannerServiceProvider;
+use Native\Mobile\Providers\SecureStorageServiceProvider;
 use Native\Mobile\UI\NativeUIServiceProvider;
 
 class NativeServiceProvider extends ServiceProvider
@@ -36,7 +38,8 @@ class NativeServiceProvider extends ServiceProvider
     {
         return [
             NativeUIServiceProvider::class,
-
+            ScannerServiceProvider::class,
+            SecureStorageServiceProvider::class,
         ];
     }
 }

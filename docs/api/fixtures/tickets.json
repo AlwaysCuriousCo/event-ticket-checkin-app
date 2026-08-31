@@ -1,0 +1,22 @@
+{
+    "tickets": [
+        {
+            "id": 701,
+            "name": "General Admission",
+            "provider": "tickets-commerce",
+            "price": 25
+        },
+        {
+            "id": 702,
+            "name": "VIP",
+            "provider": "tickets-commerce",
+            "price": 25
+        },
+        {
+            "id": 703,
+            "name": "RSVP",
+            "provider": "rsvp",
+            "price": 0
+        }
+    ]
+}
