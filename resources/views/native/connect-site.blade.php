@@ -3,7 +3,7 @@
 <native:scroll-view class="w-full h-full bg-white">
     <native:column class="w-full p-6 gap-4">
         <native:text class="text-base text-zinc-600">
-            Connect the WordPress site running Event Tickets and the TEC Scanner companion plugin.
+            Connect to the site running Event Tickets.
         </native:text>
 
         @unless ($scannerUnavailable)
@@ -14,7 +14,7 @@
                 <native:text class="text-base font-semibold text-white">Scan pairing code</native:text>
             </native:pressable>
             <native:text class="text-xs text-zinc-500 text-center">
-                In wp-admin go to Tickets → Scanner App and scan the QR shown there.
+                Go to Tickets → Scanner App and scan the QR shown there.
             </native:text>
 
             <native:row class="w-full items-center gap-3">
@@ -27,14 +27,14 @@
         <native:outlined-text-input native:model="siteUrl" label="Site address"
                                     placeholder="https://example.com" keyboard="url" :disabled="$busy" />
 
-        <native:outlined-text-input native:model="username" label="WordPress username"
+        <native:outlined-text-input native:model="username" label="Username"
                                     placeholder="username" :disabled="$busy" />
 
         <native:column class="w-full gap-2">
             <native:outlined-text-input native:model="password" label="Application password"
                                         placeholder="xxxx xxxx xxxx xxxx" secure :disabled="$busy" />
             <native:text class="text-xs text-zinc-500">
-                Create one in wp-admin under Users → Profile → Application Passwords. It is stored only in this device's secure storage.
+                Create one in Users → Profile → Application Passwords.
             </native:text>
         </native:column>
 

@@ -50,7 +50,7 @@ class ConnectSite extends NativeComponent
     {
         $this->error = '';
 
-        if (! app(NativeScanner::class)->start('pair-scan', 'Point at the pairing QR in wp-admin')) {
+        if (! app(NativeScanner::class)->start('pair-scan', 'Point at the pairing QR in your site admin')) {
             $this->scannerUnavailable = true;
             $this->error = 'QR scanning is not available in this build — enter the details manually.';
         }
@@ -66,7 +66,7 @@ class ConnectSite extends NativeComponent
         $parsed = app(QrParser::class)->parse($data);
 
         if (! $parsed instanceof PairingQr) {
-            $this->error = 'That is not a pairing QR. In wp-admin go to Tickets → Scanner App.';
+            $this->error = 'That is not a pairing QR. In your site admin go to Tickets → Scanner App.';
 
             return;
         }
@@ -101,7 +101,7 @@ class ConnectSite extends NativeComponent
         } catch (ApiException $e) {
             $this->busy = false;
             $this->error = $e->status === 403
-                ? 'This pairing code is invalid or has expired. Generate a fresh one in wp-admin.'
+                ? 'This pairing code is invalid or has expired. Generate a fresh one in your site admin.'
                 : "Pairing failed: {$e->getMessage()}";
 
             return;
@@ -169,7 +169,7 @@ class ConnectSite extends NativeComponent
             $this->abortConnect($site, $e->isAuthFailure()
                 ? 'The site rejected these credentials. Check the username and application password.'
                 : ($e->status === 404
-                    ? 'The TEC Scanner companion plugin does not appear to be installed on this site.'
+                    ? 'The Scanner companion plugin does not appear to be installed on this site.'
                     : "Could not reach the site: {$e->getMessage()}"));
 
             return;
