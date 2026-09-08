@@ -1,3 +1,5 @@
+<native:top-bar title="Register walk-up" back />
+
 <native:scroll-view class="w-full h-full bg-white">
     <native:column class="w-full p-4 gap-4">
 
