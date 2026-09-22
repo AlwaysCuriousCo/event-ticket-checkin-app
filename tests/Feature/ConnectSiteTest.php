@@ -1,5 +1,6 @@
 <?php
 
+use App\Models\Event;
 use App\Models\Site;
 use App\NativeComponents\ConnectSite;
 use App\Services\Api\ApiClient;
@@ -197,4 +198,77 @@ it('rejects re-scanning a pairing QR for an already-connected site', function ()
         ->assertSee('already connected');
 
     expect(Site::count())->toBe(1);
+});
+
+it('re-authenticates an existing site with a new password and keeps its data', function () {
+    $site = Site::factory()->create(['base_url' => 'https://example.test', 'username' => 'olduser', 'name' => 'Old Name']);
+    $event = Event::factory()->create(['site_id' => $site->id]);
+
+    Native::test(ConnectSite::class, params: ['site' => $site->id])
+        ->assertSee('Update credentials')
+        ->assertSet('siteUrl', 'https://example.test')
+        ->assertSet('username', 'olduser')
+        ->set('username', 'doorstaff')
+        ->set('password', 'new pass word here')
+        ->call('connect')
+        ->assertSet('error', '')
+        ->assertSet('password', '')
+        ->assertReplacedWith('/events');
+
+    $site->refresh();
+    expect(Site::count())->toBe(1)
+        ->and($site->username)->toBe('doorstaff')
+        ->and($site->name)->toBe('Fixture Fest Productions')
+        ->and($site->is_active)->toBeTrue()
+        ->and($event->fresh())->not->toBeNull();
+
+    $this->bridge->assertCalled('SecureStorage.Set', fn ($p) => ($p['key'] ?? null) === $site->credentialKey());
+});
+
+it('re-authenticates from a scanned pairing QR without creating a duplicate', function () {
+    $site = Site::factory()->create(['base_url' => 'https://example.test', 'username' => 'olduser']);
+
+    $qr = json_encode([
+        'v' => 1,
+        'type' => 'event-ticket-scanner-pair',
+        'url' => 'https://example.test',
+        'user' => 'doorstaff',
+        'token' => str_repeat('a1b2c3d4', 5),
+    ]);
+
+    Native::test(ConnectSite::class, params: ['site' => $site->id])
+        ->call('onCodeScanned', $qr, 'qr')
+        ->assertReplacedWith('/events');
+
+    expect(Site::count())->toBe(1)
+        ->and($site->fresh()->username)->toBe('doorstaff');
+});
+
+it('restores the previous credentials when re-authentication fails', function () {
+    $site = Site::factory()->create(['base_url' => 'https://example.test', 'username' => 'olduser']);
+    $this->bridge->respondTo('SecureStorage.Get', ['status' => 'ok', 'value' => 'old-secret']);
+    app(ApiClient::class)->failNextWith(new ApiException('Invalid credentials', 401));
+
+    Native::test(ConnectSite::class, params: ['site' => $site->id])
+        ->set('password', 'wrong')
+        ->call('connect')
+        ->assertSee('rejected these credentials')
+        ->assertNoNavigation();
+
+    expect(Site::count())->toBe(1)
+        ->and($site->fresh()->username)->toBe('olduser');
+    $this->bridge->assertCalled('SecureStorage.Set', fn ($p) => ($p['value'] ?? null) === 'old-secret');
+});
+
+it('refuses to re-authenticate against a different site address', function () {
+    $site = Site::factory()->create(['base_url' => 'https://example.test', 'username' => 'olduser']);
+
+    Native::test(ConnectSite::class, params: ['site' => $site->id])
+        ->set('siteUrl', 'https://other.test')
+        ->set('password', 'abcd')
+        ->call('connect')
+        ->assertSee('different site')
+        ->assertNoNavigation();
+
+    expect($site->fresh()->base_url)->toBe('https://example.test');
 });

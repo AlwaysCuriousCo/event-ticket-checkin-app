@@ -19,6 +19,7 @@ Route::native('/', Home::class);
 // Onboarding stays outside the tab bar — there is nothing to navigate to
 // until a site is connected.
 Route::native('/connect', ConnectSite::class);
+Route::native('/connect/{site}', ConnectSite::class); // re-authenticate an existing site
 
 // Everything else lives under the bottom nav. Pushed detail screens still
 // declare `$hidesTabBar`; the layout only supplies the bar itself.

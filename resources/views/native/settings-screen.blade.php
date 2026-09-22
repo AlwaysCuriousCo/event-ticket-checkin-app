@@ -31,10 +31,18 @@
                         @endif
                     </native:pressable>
 
-                    <native:pressable ref="remove-site-{{ $site['id'] }}" a11y-label="Disconnect {{ $site['name'] }}"
-                                      class="p-1" @tap="confirmRemove({{ $site['id'] }})">
-                        <native:text class="text-sm font-semibold text-red-600">Disconnect</native:text>
-                    </native:pressable>
+                    <native:row class="w-full items-center gap-3 pt-1">
+                        <native:pressable ref="reauth-site-{{ $site['id'] }}" a11y-label="Update credentials for {{ $site['name'] }}"
+                                          class="flex-1 items-center justify-center p-3 rounded-lg bg-white border border-blue-300"
+                                          @tap="reauthenticate({{ $site['id'] }})">
+                            <native:text class="text-sm font-semibold text-blue-600">Update credentials</native:text>
+                        </native:pressable>
+                        <native:pressable ref="remove-site-{{ $site['id'] }}" a11y-label="Disconnect {{ $site['name'] }}"
+                                          class="flex-1 items-center justify-center p-3 rounded-lg bg-white border border-red-300"
+                                          @tap="confirmRemove({{ $site['id'] }})">
+                            <native:text class="text-sm font-semibold text-red-600">Disconnect</native:text>
+                        </native:pressable>
+                    </native:row>
                 </native:column>
             @endforeach
 

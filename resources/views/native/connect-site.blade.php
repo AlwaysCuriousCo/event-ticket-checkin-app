@@ -1,9 +1,13 @@
-<native:top-bar title="Connect a Site" display-mode="large" :back="$canCancel" />
+<native:top-bar title="{{ $reauthName !== '' ? 'Update credentials' : 'Connect a Site' }}" display-mode="large" :back="$canCancel" />
 
 <native:scroll-view class="w-full h-full bg-white">
     <native:column class="w-full p-6 gap-4">
         <native:text class="text-base text-zinc-600">
-            Connect to the site running Event Tickets.
+            @if ($reauthName !== '')
+                Re-authenticate {{ $reauthName }} — scan a fresh pairing code or enter a new application password. Events and unsynced check-ins on this device are kept.
+            @else
+                Connect to the site running Event Tickets.
+            @endif
         </native:text>
 
         @unless ($scannerUnavailable)
@@ -51,7 +55,7 @@
                 <native:activity-indicator size="small" color="#ffffff" />
                 <native:text class="text-base font-semibold text-white">Connecting…</native:text>
             @else
-                <native:text class="text-base font-semibold text-white">Connect</native:text>
+                <native:text class="text-base font-semibold text-white">{{ $reauthName !== '' ? 'Update credentials' : 'Connect' }}</native:text>
             @endif
         </native:pressable>
     </native:column>

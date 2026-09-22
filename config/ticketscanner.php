@@ -28,6 +28,7 @@ return [
     'sync_per_page' => 100,
 
     // Quiet window after a scan before the sync job fires (batches rapid scans).
-    'sync_debounce_seconds' => 15,
+    // 0 = push to the server inline, immediately after every check-in.
+    'sync_debounce_seconds' => (int) env('TICKETSCANNER_SYNC_DEBOUNCE_SECONDS', 15),
 
 ];

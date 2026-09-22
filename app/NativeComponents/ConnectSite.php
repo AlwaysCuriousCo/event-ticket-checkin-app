@@ -36,9 +36,23 @@ class ConnectSite extends NativeComponent
      */
     public bool $canCancel = false;
 
+    /** Re-authenticating an already-connected site (rotated app password). */
+    public string $reauthName = '';
+
+    protected ?Site $reauthSite = null;
+
     public function mount(): void
     {
         $this->canCancel = Site::query()->exists();
+
+        $this->reauthSite = Site::find((int) $this->param('site', 0));
+
+        if ($this->reauthSite) {
+            $this->reauthName = $this->reauthSite->name;
+            $this->siteUrl = $this->reauthSite->base_url;
+            $this->username = $this->reauthSite->username;
+            $this->canCancel = true;
+        }
     }
 
     /**
@@ -142,6 +156,12 @@ class ConnectSite extends NativeComponent
      */
     private function finishConnect(string $url, string $username, string $password, ?string $name = null): void
     {
+        if ($this->reauthSite) {
+            $this->reauthenticate($url, $username, $password);
+
+            return;
+        }
+
         // Guarded here so both paths are covered — re-scanning the same
         // pairing QR must not create a duplicate site row.
         if (Site::where('base_url', $url)->where('username', $username)->exists()) {
@@ -188,6 +208,64 @@ class ConnectSite extends NativeComponent
         $site->activate();
 
         $this->password = ''; // never keep it in component state longer than needed
+        $this->busy = false;
+
+        $this->replace('/events');
+    }
+
+    /**
+     * Swap credentials on an existing site without touching its events,
+     * attendees or unsynced check-ins. The old password is restored if the
+     * new one fails verification, so a typo never locks the site out.
+     */
+    private function reauthenticate(string $url, string $username, string $password): void
+    {
+        $site = $this->reauthSite;
+
+        if ($url !== $site->base_url) {
+            $this->busy = false;
+            $this->error = "That is a different site. Use “Connect another site” to add it; this screen only updates {$site->name}.";
+
+            return;
+        }
+
+        $this->busy = true;
+
+        $credentials = app(SiteCredentials::class);
+        $previous = $credentials->passwordFor($site);
+        $previousUser = $site->username;
+
+        $rollback = function (string $message) use ($site, $credentials, $previous, $previousUser): void {
+            $site->update(['username' => $previousUser]);
+            $previous === null ? $credentials->forget($site) : $credentials->store($site, $previous);
+
+            $this->busy = false;
+            $this->error = $message;
+        };
+
+        $site->update(['username' => $username]);
+        $credentials->store($site, $password);
+
+        try {
+            $me = app(ApiClient::class)->me($site);
+        } catch (ApiException $e) {
+            $rollback($e->isAuthFailure()
+                ? 'The site rejected these credentials. Check the username and application password.'
+                : "Could not reach the site: {$e->getMessage()}");
+
+            return;
+        }
+
+        if (! ($me['capabilities']['can_checkin'] ?? false)) {
+            $rollback('This user is not allowed to manage check-ins. Ask an administrator for the check-in capability.');
+
+            return;
+        }
+
+        $site->update(['name' => $me['site_name'], 'last_verified_at' => now()]);
+        $site->activate();
+
+        $this->password = '';
         $this->busy = false;
 
         $this->replace('/events');
