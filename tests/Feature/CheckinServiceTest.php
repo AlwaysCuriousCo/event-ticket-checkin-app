@@ -90,3 +90,14 @@ it('falls back to the queued job when the inline sync fails', function () {
 
     Queue::assertPushed(SyncEventJob::class, 1);
 });
+
+it('falls back to the queued job when the inline sync is skipped offline', function () {
+    config(['ticketscanner.sync_debounce_seconds' => 0]);
+    $engine = Mockery::mock(SyncEngine::class);
+    $engine->shouldReceive('syncEvent')->once()->andReturn(false);
+    app()->instance(SyncEngine::class, $engine);
+
+    $this->service->checkin($this->attendee, $this->event);
+
+    Queue::assertPushed(SyncEventJob::class, 1);
+});

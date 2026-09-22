@@ -108,6 +108,12 @@ class ConnectSite extends NativeComponent
             return;
         }
 
+        // Before the exchange: the token is single-use, so a QR for the
+        // wrong site must be rejected without spending it.
+        if ($this->isDifferentSite($url)) {
+            return;
+        }
+
         $this->busy = true;
 
         try {
@@ -156,17 +162,23 @@ class ConnectSite extends NativeComponent
      */
     private function finishConnect(string $url, string $username, string $password, ?string $name = null): void
     {
-        if ($this->reauthSite) {
-            $this->reauthenticate($url, $username, $password);
+        // Guarded here so both paths are covered — re-scanning the same
+        // pairing QR must not create a duplicate site row, and a reauth must
+        // not collide with another connected user on the unique index.
+        $duplicate = Site::where('base_url', $url)
+            ->where('username', $username)
+            ->whereKeyNot($this->reauthSite?->id)
+            ->exists();
+
+        if ($duplicate) {
+            $this->busy = false;
+            $this->error = 'That site is already connected for this user.';
 
             return;
         }
 
-        // Guarded here so both paths are covered — re-scanning the same
-        // pairing QR must not create a duplicate site row.
-        if (Site::where('base_url', $url)->where('username', $username)->exists()) {
-            $this->busy = false;
-            $this->error = 'That site is already connected for this user.';
+        if ($this->reauthSite) {
+            $this->reauthenticate($url, $username, $password);
 
             return;
         }
@@ -222,10 +234,7 @@ class ConnectSite extends NativeComponent
     {
         $site = $this->reauthSite;
 
-        if ($url !== $site->base_url) {
-            $this->busy = false;
-            $this->error = "That is a different site. Use “Connect another site” to add it; this screen only updates {$site->name}.";
-
+        if ($this->isDifferentSite($url)) {
             return;
         }
 
@@ -269,6 +278,21 @@ class ConnectSite extends NativeComponent
         $this->busy = false;
 
         $this->replace('/events');
+    }
+
+    /** In reauth mode only the stored site's address is acceptable. */
+    private function isDifferentSite(string $url): bool
+    {
+        $site = $this->reauthSite;
+
+        if (! $site || $url === $site->base_url) {
+            return false;
+        }
+
+        $this->busy = false;
+        $this->error = "That is a different site. Use “Connect another site” to add it; this screen only updates {$site->name}.";
+
+        return true;
     }
 
     private function abortConnect(Site $site, string $message): void

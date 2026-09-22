@@ -72,8 +72,13 @@ class CheckinService
 
         if ($seconds <= 0) {
             try {
-                app(SyncEngine::class)->syncEvent($event);
+                $synced = app(SyncEngine::class)->syncEvent($event);
             } catch (ApiException) {
+                $synced = false;
+            }
+
+            // syncEvent returns false offline; queue so the next launch retries.
+            if (! $synced) {
                 SyncEventJob::dispatch($event->id);
             }
 

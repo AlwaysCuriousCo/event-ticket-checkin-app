@@ -272,3 +272,39 @@ it('refuses to re-authenticate against a different site address', function () {
 
     expect($site->fresh()->base_url)->toBe('https://example.test');
 });
+
+it('rejects a pairing QR for a different site before spending its token', function () {
+    $site = Site::factory()->create(['base_url' => 'https://example.test', 'username' => 'olduser']);
+    app(ApiClient::class)->failNextWith(new ApiException('token should not be exchanged', 500));
+
+    $qr = json_encode([
+        'v' => 1,
+        'type' => 'event-ticket-scanner-pair',
+        'url' => 'https://other.test',
+        'user' => 'doorstaff',
+        'token' => str_repeat('a1b2c3d4', 5),
+    ]);
+
+    Native::test(ConnectSite::class, params: ['site' => $site->id])
+        ->call('onCodeScanned', $qr, 'qr')
+        ->assertSee('different site')
+        ->assertSet('busy', false)
+        ->assertNoNavigation();
+
+    expect(Site::count())->toBe(1);
+});
+
+it('refuses to re-authenticate onto a user already connected for the same site', function () {
+    Site::factory()->create(['base_url' => 'https://example.test', 'username' => 'doorstaff']);
+    $site = Site::factory()->create(['base_url' => 'https://example.test', 'username' => 'olduser']);
+
+    Native::test(ConnectSite::class, params: ['site' => $site->id])
+        ->set('username', 'doorstaff')
+        ->set('password', 'abcd')
+        ->call('connect')
+        ->assertSee('already connected')
+        ->assertSet('busy', false)
+        ->assertNoNavigation();
+
+    expect($site->fresh()->username)->toBe('olduser');
+});
