@@ -64,7 +64,9 @@ it('delta sync after a full sync pulls nothing when the server is unchanged', fu
 it('delta sync picks up server-side changes since the cursor', function () {
     $this->engine->pullAttendees($this->event);
 
-    // Another device checks in Ada (9001) directly against the "server".
+    // Another device checks in Ada (9001) directly against the "server",
+    // strictly after the cursor — the suite clock is frozen.
+    $this->travel(1)->second();
     $this->api->pushCheckins($this->site, 'front-door-ipad', [[
         'op_id' => (string) Str::uuid(),
         'attendee_id' => 9001,

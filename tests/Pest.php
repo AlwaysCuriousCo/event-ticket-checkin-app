@@ -1,6 +1,7 @@
 <?php
 
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Carbon;
 use Tests\TestCase;
 
 /*
@@ -14,8 +15,11 @@ use Tests\TestCase;
 |
 */
 
+// Fixtures are pinned to 2026-09-12; freeze the clock the day before so
+// the fixture event stays "upcoming" no matter when the suite runs.
 pest()->extend(TestCase::class)
     ->use(RefreshDatabase::class)
+    ->beforeEach(fn () => Carbon::setTestNow('2026-09-11 12:00:00'))
     ->in('Feature');
 
 /*

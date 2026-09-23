@@ -67,6 +67,12 @@ class SettingsScreen extends NativeComponent
         $this->navigate('/connect');
     }
 
+    /** Rotated app password / fresh pairing QR — keeps the site's local data. */
+    public function reauthenticate(int $siteId): void
+    {
+        $this->navigate("/connect/{$siteId}");
+    }
+
     public function saveDeviceName(): void
     {
         $name = trim($this->deviceName);

@@ -4,7 +4,9 @@ use App\Jobs\SyncEventJob;
 use App\Models\Attendee;
 use App\Models\CheckinOperation;
 use App\Models\Event;
+use App\Services\Api\ApiException;
 use App\Services\CheckinService;
+use App\Services\SyncEngine;
 use Illuminate\Support\Facades\Queue;
 
 covers(CheckinService::class);
@@ -65,4 +67,37 @@ it('uses the configured device name when set', function () {
     $this->service->checkin($this->attendee, $this->event);
 
     expect($this->attendee->refresh()->checked_in_by)->toBe('tims-iphone-15');
+});
+
+it('syncs inline instead of queueing when the debounce is zero', function () {
+    config(['ticketscanner.sync_debounce_seconds' => 0]);
+    $engine = Mockery::mock(SyncEngine::class);
+    $engine->shouldReceive('syncEvent')->once()->andReturn(true);
+    app()->instance(SyncEngine::class, $engine);
+
+    $this->service->checkin($this->attendee, $this->event);
+
+    Queue::assertNothingPushed();
+});
+
+it('falls back to the queued job when the inline sync fails', function () {
+    config(['ticketscanner.sync_debounce_seconds' => 0]);
+    $engine = Mockery::mock(SyncEngine::class);
+    $engine->shouldReceive('syncEvent')->once()->andThrow(new ApiException('down', 503));
+    app()->instance(SyncEngine::class, $engine);
+
+    $this->service->checkin($this->attendee, $this->event);
+
+    Queue::assertPushed(SyncEventJob::class, 1);
+});
+
+it('falls back to the queued job when the inline sync is skipped offline', function () {
+    config(['ticketscanner.sync_debounce_seconds' => 0]);
+    $engine = Mockery::mock(SyncEngine::class);
+    $engine->shouldReceive('syncEvent')->once()->andReturn(false);
+    app()->instance(SyncEngine::class, $engine);
+
+    $this->service->checkin($this->attendee, $this->event);
+
+    Queue::assertPushed(SyncEventJob::class, 1);
 });

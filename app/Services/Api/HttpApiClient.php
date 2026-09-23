@@ -7,6 +7,7 @@ use App\Services\SiteCredentials;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\PendingRequest;
 use Illuminate\Http\Client\Response;
+use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Http;
 
 /** Talks to a real WordPress site running the companion plugin. */
@@ -113,7 +114,8 @@ class HttpApiClient implements ApiClient
             ->timeout(20)
             ->connectTimeout(8);
 
-        // Dev-only: trust a private CA (Herd/Valet *.test certs). See config.
+        // Optional private CA (Herd/Valet *.test certs) is ADDED to the
+        // system roots, never used alone — public sites must keep working.
         if ($bundle = $this->caBundle()) {
             $request = $request->withOptions(['verify' => $bundle]);
         }
@@ -129,19 +131,30 @@ class HttpApiClient implements ApiClient
             return null;
         }
 
-        if (is_file($configured)) {
-            return $configured;
-        }
-
         // Relative paths: base_path covers files shipped inside the app
         // bundle (resources/…); storage_path kept for backwards compat.
-        foreach ([base_path($configured), storage_path($configured)] as $candidate) {
-            if (is_file($candidate)) {
-                return $candidate;
-            }
+        $private = collect([$configured, base_path($configured), storage_path($configured)])
+            ->first(fn ($p) => is_file($p));
+
+        if ($private === null) {
+            return null;
         }
 
-        return null;
+        $system = ini_get('curl.cainfo') ?: (openssl_get_cert_locations()['default_cert_file'] ?? '');
+
+        if (! is_file($system)) {
+            return $private;
+        }
+
+        // Merged bundle = system roots + private CA, rebuilt when either changes.
+        $merged = storage_path('app/ca-bundle.pem');
+
+        if (! is_file($merged) || filemtime($merged) < max(filemtime($system), filemtime($private))) {
+            File::ensureDirectoryExists(dirname($merged));
+            file_put_contents($merged, file_get_contents($system)."\n".file_get_contents($private));
+        }
+
+        return $merged;
     }
 
     private function decode(Response $response): array

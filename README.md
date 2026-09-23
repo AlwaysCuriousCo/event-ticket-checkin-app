@@ -1,58 +1,70 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# TEC Ticket Scanner
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+A native iOS/Android app that checks in Event Tickets (The Events Calendar) attendees at the door. Point the phone at a ticket QR code and get an instant answer: **green** (valid, checked in), **amber** (already checked in, shows who and when), or **red** (invalid, shows why).
 
-## About Laravel
+Built with [NativePHP for Mobile v4](https://nativephp.com/docs/mobile/4/) (Laravel 13 running on-device, native SwiftUI/Compose UI) and a small companion WordPress plugin.
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+## Why
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+Event Tickets sells the tickets, but door check-in on the free plugin means a browser tab, a live connection, and a search box. That falls apart the moment the venue's Wi‑Fi does, and a queue of 300 people does not wait for a page reload.
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+This app moves the decision onto the phone:
 
-## Learning Laravel
+- **Offline-first.** The full attendee list for an event syncs to on-device SQLite. Every scan validates locally in milliseconds, with or without signal. Check-ins queue and sync back when the network returns.
+- **Instant, unambiguous verdicts.** Full-screen green / amber / red with haptic feedback, readable at arm's length in a dark doorway. Amber is a distinct state so staff can spot a duplicated ticket without it looking like a fraud alert.
+- **Multi-device safe.** Check-ins are idempotent and attributed per device. If two scanners hit the same ticket, the second gets amber with "checked in by Door 2 at 7:04 pm", not a silent overwrite.
+- **Works with the free Event Tickets plugin.** No Event Tickets Plus requirement. Tickets Commerce and RSVP attendees are supported.
+- **Secure by default.** Authenticates with WordPress Application Passwords over HTTPS. Credentials live in the device Keychain/Keystore, never in the app database or logs.
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
+## What it does
 
-In addition, [Laracasts](https://laracasts.com) contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+- **Scan.** Continuous QR scanning, duplicate-read debounce, torch, haptics. Green auto-dismisses so the line keeps moving.
+- **Search and manual check-in.** Find an attendee by name or email when a ticket is lost or the phone screen is cracked. Check in with a tap.
+- **Undo.** Reverse a mistaken check-in behind a confirmation dialog.
+- **Live stats.** Total vs. checked in, broken down by ticket type. Server truth when online, local numbers when not.
+- **Multiple sites and events.** Pair one or more WordPress sites and switch between their events.
+- **Pairing by QR.** Scan a single-use pairing code from the WordPress admin instead of typing a URL and password at the door.
 
-You can also watch bite-sized lessons with real-world projects on [Laravel Learn](https://laravel.com/learn), where you will be guided through building a Laravel application from scratch while learning PHP fundamentals.
+## How it works
 
-## Agentic Development
-
-Laravel's predictable structure and conventions make it ideal for AI coding agents like Claude Code, Cursor, and GitHub Copilot. Install [Laravel Boost](https://laravel.com/docs/ai) to supercharge your AI workflow:
-
-```bash
-composer require laravel/boost --dev
-
-php artisan boost:install
+```
+Phone (this repo)                              WordPress site
+NativePHP v4 app, SQLite, native UI   HTTPS    Companion plugin, REST ns tec-scanner/v1
+  Scanner ─▶ QrParser ─▶ ScanValidator ◀────▶  GET  /me
+  CheckinService ─▶ checkin_operations  Basic  GET  /events
+  SyncEngine ─▶ HttpApiClient           auth   GET  /events/{id}/attendees?updated_since
+  SecureStorage (app password per site)        POST /checkins  (batch, idempotent)
+                                               GET  /events/{id}/stats
+                                               POST /pair
 ```
 
-Boost provides your agent 15+ tools and skills that help agents build Laravel applications while following best practices.
+The scan decision is a local lookup of the QR's attendee ID, event ID and security code against SQLite. Sync pulls attendees by delta (the plugin tracks check-in changes that Event Tickets itself does not timestamp) and pushes queued check-ins in idempotent batches.
 
-## Contributing
+## Requirements
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+- **Server:** WordPress with Event Tickets (free, 5.7+) and the companion plugin `wp-tec-ticket-scanner`, reachable over HTTPS. A WordPress user with check-in rights and an Application Password (or use QR pairing).
+- **Development:** macOS with Xcode 26+ for iOS, PHP 8.3+, Composer, a NativePHP Ultra license (for the premium Scanner and SecureStorage plugins).
 
-## Code of Conduct
+## Development
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+```bash
+composer install
+cp .env.example .env && php artisan key:generate
+php artisan test                 # Pest, sqlite :memory:, fixture API client
+php artisan native:install ios   # once
+LANG=en_US.UTF-8 LC_ALL=en_US.UTF-8 php artisan native:run ios <simulator-udid> --no-tty
+```
 
-## Security Vulnerabilities
+Key `.env` switches:
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+| Variable | Purpose |
+|---|---|
+| `TICKETSCANNER_API` | `http` for a real site, `fixture` to run against `docs/api/fixtures/` |
+| `TICKETSCANNER_CA_BUNDLE` | Private CA bundle for local `*.test` sites (on-device PHP ignores the OS keychain) |
+| `NATIVEPHP_APP_VERSION` | Keep `DEBUG` for dev builds so the shell re-extracts the bundle on every launch |
 
-## License
+The REST contract both codebases test against lives in [docs/api/openapi.yaml](docs/api/openapi.yaml); the ticket and pairing QR formats are in [docs/api/qr-format.md](docs/api/qr-format.md). See [PLAN.md](PLAN.md) for the staged build plan and [CLAUDE.md](CLAUDE.md) for agent orientation and environment gotchas.
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+## Status
+
+Pre-release. Scanning, sync, search, manual check-in, undo and stats are implemented and tested against a real WordPress site. Settings screen, app icon, Android build and store packaging are in progress.
