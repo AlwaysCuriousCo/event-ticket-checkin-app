@@ -142,8 +142,10 @@ class HttpApiClient implements ApiClient
 
         $system = ini_get('curl.cainfo') ?: (openssl_get_cert_locations()['default_cert_file'] ?? '');
 
+        // No system roots to merge with: fall back to curl's defaults rather
+        // than trusting the private CA alone, which would break public sites.
         if (! is_file($system)) {
-            return $private;
+            return null;
         }
 
         // Merged bundle = system roots + private CA, rebuilt when either changes.

@@ -56,6 +56,16 @@ class Event extends Model
         }
     }
 
+    /** Human start time in the event's own wall clock, e.g. "Wed, Sep 23 · 7:00 PM". */
+    public function displayDate(): string
+    {
+        try {
+            return $this->starts_at ? Carbon::parse($this->starts_at)->format('D, M j · g:i A') : '';
+        } catch (InvalidFormatException) {
+            return (string) $this->starts_at;
+        }
+    }
+
     public function site(): BelongsTo
     {
         return $this->belongsTo(Site::class);

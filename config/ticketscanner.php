@@ -3,11 +3,11 @@
 return [
 
     /*
-    | Which ApiClient implementation to bind: "fixture" serves docs/api/fixtures
-    | (all development through Stage 6), "http" talks to a real WordPress site
-    | running the companion plugin (Stage 8+).
+    | Which ApiClient implementation to bind: "http" (default) talks to a real
+    | WordPress site running the companion plugin; "fixture" serves canned
+    | docs/api/fixtures responses and is for the test suite (phpunit.xml) only.
     */
-    'api' => env('TICKETSCANNER_API', 'fixture'),
+    'api' => env('TICKETSCANNER_API', 'http'),
 
     /*
     | Friendly device name sent as `device_id` with check-in batches. Falls

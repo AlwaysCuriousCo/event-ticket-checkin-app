@@ -10,6 +10,7 @@ use App\Services\NativeScanner;
 use App\Services\Qr\QrParser;
 use App\Services\Scan\ScanOutcome;
 use App\Services\Scan\ScanValidator;
+use Carbon\Carbon;
 use Illuminate\View\View;
 use Native\Mobile\Attributes\On;
 use Native\Mobile\Attributes\Poll;
@@ -286,7 +287,7 @@ class ScanScreen extends NativeComponent
     {
         $this->checkedInInfo = trim(sprintf(
             'Already checked in %s%s',
-            $attendee->checked_in_at ? "at {$attendee->checked_in_at}" : '',
+            $attendee->checked_in_at ? rescue(fn () => Carbon::parse($attendee->checked_in_at)->diffForHumans(), $attendee->checked_in_at, false) : '',
             $attendee->checked_in_by ? " via {$attendee->checked_in_by}" : '',
         ));
         $this->vibrate(2);
