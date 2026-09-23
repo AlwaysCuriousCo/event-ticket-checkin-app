@@ -1,6 +1,14 @@
 # Release Notes
 
-## [Unreleased](https://github.com/laravel/laravel/compare/v1.0.2...main)
+## [Unreleased](https://github.com/laravel/laravel/compare/3.0.0...main)
+
+## [3.0.0](https://github.com/laravel/laravel/compare/v1.0.2...3.0.0) - 2026-09-23
+
+### What's Changed
+
+* Add site reauth and safer sync config by [@codearachnid](https://github.com/codearachnid) in https://github.com/AlwaysCuriousCo/event-ticket-checkin-app/pull/4
+
+**Full Changelog**: https://github.com/AlwaysCuriousCo/event-ticket-checkin-app/compare/v1.0.2...3.0.0
 
 ## [v1.0.2](https://github.com/laravel/laravel/compare/v1.0.0...v1.0.2) - 2026-09-08
 
