@@ -191,7 +191,7 @@ class EventsIndex extends NativeComponent
                 return [
                     'id' => $event->id,
                     'title' => $event->title,
-                    'date' => $event->starts_at ?? '',
+                    'date' => $event->displayDate(),
                     'venue' => $event->venue,
                     'attendee_count' => $total,
                     'checked_in_count' => $checkedIn,

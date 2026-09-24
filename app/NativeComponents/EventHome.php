@@ -43,7 +43,7 @@ class EventHome extends NativeComponent
         }
 
         $this->title = $this->event->title;
-        $this->date = (string) $this->event->starts_at;
+        $this->date = $this->event->displayDate();
         $this->canRegisterWalkUp = $this->event->allow_walkup && ! $this->event->hasEnded();
 
         // First visit for this event: block on the initial attendee sync so

@@ -93,7 +93,7 @@ it('shows AMBER with who and when for an already-checked-in attendee', function 
         ->emitNative(CodeScanned::class, ['data' => ticketQrUrl($attendee), 'format' => 'qr'])
         ->assertSet('phase', 'amber')
         ->assertSee('Grace Hopper')
-        ->assertSee('front-door-ipad');
+        ->assertSee('ago via front-door-ipad');
 
     // No new operation for a duplicate.
     expect(CheckinOperation::count())->toBe(0);
